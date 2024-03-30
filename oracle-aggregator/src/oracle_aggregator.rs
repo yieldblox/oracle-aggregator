@@ -5,11 +5,13 @@ pub trait OracleAggregatorTrait {
     fn initialize(
         e: Env,
         admin: Address,
-        oracles: Vec<Address>,
-        oracle_configs: Vec<OracleConfig>,
+        assets: Vec<Asset>,
+        asset_configs: Vec<OracleConfig>,
         decimals: u32,
         base: Asset,
-        outlier_threshold: u32,
+        enbable_circuit_breaker: bool,
+        circuit_breaker_threshold: u32,
+        circuit_breaker_timeout: u64,
     );
 
     fn base(e: Env) -> Asset;
@@ -24,5 +26,5 @@ pub trait OracleAggregatorTrait {
 
     fn prices(e: Env, asset: Asset, records: u32) -> Option<Vec<PriceData>>;
 
-    fn remove_oracle(e: Env, oracle: Address);
+    fn remove_asset(e: Env, asset: Asset);
 }

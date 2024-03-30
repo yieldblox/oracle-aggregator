@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, Address, Symbol, Vec};
+use soroban_sdk::{contracttype, Address, Symbol};
 
 /// Price data for an asset at a specific timestamp
 #[contracttype]
@@ -18,6 +18,7 @@ pub enum Asset {
 #[contracttype]
 #[derive(Clone)]
 pub struct OracleConfig {
+    pub oracle_id: Address,
     pub decimals: u32,
-    pub supported_assets: Vec<Asset>,
+    pub resolution: u64,
 }

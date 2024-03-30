@@ -1,16 +1,14 @@
 use soroban_sdk::{
-    unwrap::UnwrapOptimized, Address, Env, IntoVal, Map, Symbol, TryFromVal, Val, Vec,
+    contracttype, unwrap::UnwrapOptimized, Address, Env, IntoVal, Symbol, TryFromVal, Val, Vec,
 };
 
 use crate::types::{Asset, OracleConfig, PriceData};
 
 const ADMIN_KEY: &str = "Admin";
 const IS_INIT_KEY: &str = "IsInit";
-const ORACLES_KEY: &str = "Oracles";
-const OUTLIER_THRESHOLD_KEY: &str = "OutlierThreshold";
+const ASSETS_KEY: &str = "Assets";
 const BASE_KEY: &str = "Base";
 const DECIMALS_KEY: &str = "Decimals";
-const ASSET_TO_ORACLE_KEY: &str = "AssetToOracle";
 
 const CIRCUIT_BREAKER_KEY: &str = "CircuitBreaker";
 const VELOCITY_THRESHOLD_KEY: &str = "VelocityThreshold";
@@ -21,6 +19,12 @@ const CIRCUIT_BREAKER_TIMEOUT_KEY: &str = "CircuitBreakerTimeout";
 const ONE_DAY_LEDGERS: u32 = 17280; // assumes 5 seconds per ledger on average
 const LEDGER_THRESHOLD_SHARED: u32 = 14 * ONE_DAY_LEDGERS;
 const LEDGER_BUMP_SHARED: u32 = 15 * ONE_DAY_LEDGERS;
+
+#[derive(Clone)]
+#[contracttype]
+pub enum AggregatorDataKey {
+    AssetConfig(Asset),
+}
 
 //********** Storage Utils **********//
 
@@ -79,75 +83,48 @@ pub fn set_admin(e: &Env, admin: &Address) {
 }
 
 /********** Persistent **********/
-pub fn set_oracles(e: &Env, oracles: &Vec<Address>) {
+
+pub fn set_assets(e: &Env, assets: &Vec<Asset>) {
     e.storage()
         .persistent()
-        .set::<Symbol, Vec<Address>>(&Symbol::new(e, ORACLES_KEY), oracles);
+        .set::<Symbol, Vec<Asset>>(&Symbol::new(e, ASSETS_KEY), assets);
 }
 
-pub fn get_oracles(e: &Env) -> Vec<Address> {
+pub fn get_assets(e: &Env) -> Vec<Asset> {
     e.storage().persistent().extend_ttl(
-        &Symbol::new(e, ORACLES_KEY),
+        &Symbol::new(e, ASSETS_KEY),
         LEDGER_THRESHOLD_SHARED,
         LEDGER_BUMP_SHARED,
     );
     e.storage()
         .persistent()
-        .get::<Symbol, Vec<Address>>(&Symbol::new(e, ORACLES_KEY))
-        .unwrap_optimized()
+        .get::<Symbol, Vec<Asset>>(&Symbol::new(e, ASSETS_KEY))
+        .unwrap()
 }
 
-pub fn has_oracle(e: &Env, oracle: &Address) -> bool {
-    let oracles = get_oracles(e);
-    oracles.contains(oracle)
-}
-
-pub fn remove_oracle(e: &Env, oracle: &Address) {
-    let mut oracles = get_oracles(e);
-    for (index, address) in oracles.iter().enumerate() {
-        if address == *oracle {
-            oracles.remove(index as u32);
-            break;
-        }
-    }
-    set_oracles(e, &oracles);
-}
-
-pub fn set_oracle_config(e: &Env, oracle: &Address, config: &OracleConfig) {
+pub fn set_asset_config(e: &Env, asset: &Asset, config: &OracleConfig) {
+    let key = AggregatorDataKey::AssetConfig(asset.clone());
     e.storage()
         .persistent()
-        .set::<Address, OracleConfig>(&oracle, config);
+        .set::<AggregatorDataKey, OracleConfig>(&key, config);
 }
 
-pub fn get_oracle_config(e: &Env, oracle: &Address) -> OracleConfig {
+pub fn get_asset_config(e: &Env, asset: &Asset) -> OracleConfig {
+    let key = AggregatorDataKey::AssetConfig(asset.clone());
     e.storage()
         .persistent()
-        .extend_ttl(oracle, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
-    e.storage().persistent().get(oracle).unwrap_optimized()
+        .extend_ttl(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
+    e.storage().persistent().get(&key).unwrap_optimized()
 }
 
-pub fn has_oracle_config(e: &Env, oracle: &Address) -> bool {
-    e.storage().persistent().has(&oracle)
+pub fn has_asset_config(e: &Env, asset: &Asset) -> bool {
+    let key = AggregatorDataKey::AssetConfig(asset.clone());
+    e.storage().persistent().has(&key)
 }
 
-pub fn remove_oracle_config(e: &Env, oracle: &Address) {
-    e.storage().persistent().remove(&oracle);
-}
-
-pub fn set_outlier_threshold(e: &Env, threshold: &u32) {
-    e.storage()
-        .persistent()
-        .set::<Symbol, u32>(&Symbol::new(&e, OUTLIER_THRESHOLD_KEY), threshold);
-}
-
-pub fn get_outlier_threshold(e: &Env) -> u32 {
-    get_persistent_default(
-        e,
-        &Symbol::new(e, "Oracles"),
-        0,
-        LEDGER_THRESHOLD_SHARED,
-        LEDGER_BUMP_SHARED,
-    )
+pub fn remove_asset_config(e: &Env, asset: &Asset) {
+    let key = AggregatorDataKey::AssetConfig(asset.clone());
+    e.storage().persistent().remove(&key);
 }
 
 pub fn set_base(e: &Env, base: &Asset) {
@@ -186,52 +163,22 @@ pub fn get_decimals(e: &Env) -> u32 {
         .unwrap()
 }
 
-pub fn set_asset_oracle_map(e: &Env, asset_to_oracles: &Map<Asset, Vec<Address>>) {
+pub fn set_circuit_breaker(e: &Env, enable: &bool) {
     e.storage()
         .persistent()
-        .set::<Symbol, Map<Asset, Vec<Address>>>(
-            &Symbol::new(&e, ASSET_TO_ORACLE_KEY),
-            asset_to_oracles,
-        );
-}
-pub fn get_asset_oracle_map(e: &Env) -> Map<Asset, Vec<Address>> {
-    e.storage().persistent().extend_ttl(
-        &Symbol::new(e, ASSET_TO_ORACLE_KEY),
-        LEDGER_THRESHOLD_SHARED,
-        LEDGER_BUMP_SHARED,
-    );
-    e.storage()
-        .persistent()
-        .get::<Symbol, Map<Asset, Vec<Address>>>(&Symbol::new(&e, ASSET_TO_ORACLE_KEY))
-        .unwrap_optimized()
-}
-
-pub fn get_asset_oracles(e: &Env, asset: &Asset) -> Vec<Address> {
-    let asset_to_oracles = e
-        .storage()
-        .persistent()
-        .get::<Symbol, Map<Asset, Vec<Address>>>(&Symbol::new(&e, ASSET_TO_ORACLE_KEY));
-    e.storage().persistent().extend_ttl(
-        &Symbol::new(e, ASSET_TO_ORACLE_KEY),
-        LEDGER_THRESHOLD_SHARED,
-        LEDGER_BUMP_SHARED,
-    );
-    match asset_to_oracles {
-        Some(asset_to_oracles) => asset_to_oracles.get(asset.clone()).unwrap(),
-        None => Vec::new(&e),
-    }
-}
-
-pub fn set_circuit_breaker(e: &Env) {
-    e.storage()
-        .persistent()
-        .set::<Symbol, bool>(&Symbol::new(&e, CIRCUIT_BREAKER_KEY), &true);
+        .set::<Symbol, bool>(&Symbol::new(&e, CIRCUIT_BREAKER_KEY), &enable);
 }
 
 pub fn has_circuit_breaker(e: &Env) -> bool {
+    e.storage().persistent().extend_ttl(
+        &Symbol::new(&e, CIRCUIT_BREAKER_KEY),
+        LEDGER_THRESHOLD_SHARED,
+        LEDGER_BUMP_SHARED,
+    );
     e.storage()
         .persistent()
-        .has::<Symbol>(&Symbol::new(&e, CIRCUIT_BREAKER_KEY))
+        .get::<Symbol, bool>(&Symbol::new(&e, CIRCUIT_BREAKER_KEY))
+        .unwrap_optimized()
 }
 
 pub fn set_velocity_threshold(e: &Env, threshold: &u32) {
