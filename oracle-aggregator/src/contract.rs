@@ -1,5 +1,5 @@
 use crate::{
-    circuit_breaker::check_valid_velocity,
+    circuit_breaker::{check_circuit_breaker, check_valid_velocity},
     errors::OracleAggregatorErrors,
     oracle_aggregator::OracleAggregatorTrait,
     price_data::normalize_price,
@@ -68,13 +68,10 @@ impl OracleAggregatorTrait for OracleAggregator {
     }
 
     fn price(e: Env, asset: Asset, timestamp: u64) -> Option<PriceData> {
-        if storage::has_circuit_breaker(&e) && storage::get_circuit_breaker_status(&e, &asset) {
-            if storage::get_timeout(&e) < e.ledger().timestamp() {
-                panic_with_error!(&e, OracleAggregatorErrors::CircuitBreakerTripped);
-            } else {
-                storage::set_circuit_breaker_status(&e, &asset, &false);
-            }
+        if !storage::has_asset_config(&e, &asset) {
+            panic_with_error!(&e, OracleAggregatorErrors::AssetNotFound);
         }
+        check_circuit_breaker(&e, &asset);
 
         let config = storage::get_asset_config(&e, &asset);
         let normalized_timestamp = timestamp / config.resolution * config.resolution;
@@ -94,15 +91,10 @@ impl OracleAggregatorTrait for OracleAggregator {
                     &Symbol::new(&e, "price"),
                     vec![&e, asset.into_val(&e), prev_timestamp.into_val(&e)],
                 );
-                if prev_price.is_some() {
-                    if check_valid_velocity(&e, &asset, &price, &prev_price.unwrap_optimized()) {
-                        return Some(normalized_price);
-                    } else {
-                        return None;
-                    }
-                } else {
-                    // Oracles first price no need to check velocity
-                    return Some(normalized_price);
+                if prev_price.is_some()
+                    && !check_valid_velocity(&e, &asset, &price, &prev_price.unwrap_optimized())
+                {
+                    return None;
                 }
             }
             return Some(normalized_price);
@@ -112,13 +104,10 @@ impl OracleAggregatorTrait for OracleAggregator {
     }
 
     fn last_price(e: Env, asset: Asset) -> Option<PriceData> {
-        if storage::has_circuit_breaker(&e) && storage::get_circuit_breaker_status(&e, &asset) {
-            if storage::get_timeout(&e) < e.ledger().timestamp() {
-                panic_with_error!(&e, OracleAggregatorErrors::CircuitBreakerTripped);
-            } else {
-                storage::set_circuit_breaker_status(&e, &asset, &false);
-            }
+        if !storage::has_asset_config(&e, &asset) {
+            panic_with_error!(&e, OracleAggregatorErrors::AssetNotFound);
         }
+        check_circuit_breaker(&e, &asset);
 
         let config = storage::get_asset_config(&e, &asset);
         let price: Option<PriceData> = e.invoke_contract(
@@ -129,7 +118,7 @@ impl OracleAggregatorTrait for OracleAggregator {
 
         if let Some(price) = price {
             let decimals = storage::get_decimals(&e);
-            let noramlized_price = normalize_price(price.clone(), &decimals, &config.decimals);
+            let normalized_price = normalize_price(price.clone(), &decimals, &config.decimals);
 
             if storage::has_circuit_breaker(&e) {
                 let prev_timestamp = price.timestamp - config.resolution;
@@ -139,31 +128,24 @@ impl OracleAggregatorTrait for OracleAggregator {
                     vec![&e, asset.into_val(&e), prev_timestamp.into_val(&e)],
                 );
 
-                if prev_price.is_some() {
-                    if check_valid_velocity(&e, &asset, &price, &prev_price.unwrap_optimized()) {
-                        return Some(noramlized_price);
-                    } else {
-                        return None;
-                    }
-                } else {
-                    // Oracles first price no need to check velocity
-                    return Some(noramlized_price);
+                if prev_price.is_some()
+                    && !check_valid_velocity(&e, &asset, &price, &prev_price.unwrap_optimized())
+                {
+                    return None;
                 }
             }
-            return Some(noramlized_price);
+
+            return Some(normalized_price);
         } else {
             return None;
         }
     }
 
     fn prices(e: Env, asset: Asset, records: u32) -> Option<Vec<PriceData>> {
-        if storage::has_circuit_breaker(&e) && storage::get_circuit_breaker_status(&e, &asset) {
-            if storage::get_timeout(&e) < e.ledger().timestamp() {
-                panic_with_error!(&e, OracleAggregatorErrors::CircuitBreakerTripped);
-            } else {
-                storage::set_circuit_breaker_status(&e, &asset, &false);
-            }
+        if !storage::has_asset_config(&e, &asset) {
+            panic_with_error!(&e, OracleAggregatorErrors::AssetNotFound);
         }
+        check_circuit_breaker(&e, &asset);
 
         let config = storage::get_asset_config(&e, &asset);
         let prices: Option<Vec<PriceData>> = e.invoke_contract(
@@ -176,8 +158,8 @@ impl OracleAggregatorTrait for OracleAggregator {
             let mut normalized_prices = Vec::new(&e);
             for price in prices.iter() {
                 let decimals = storage::get_decimals(&e);
-                let noramlized_price = normalize_price(price.clone(), &decimals, &config.decimals);
-                normalized_prices.push_back(noramlized_price);
+                let normalized_price = normalize_price(price.clone(), &decimals, &config.decimals);
+                normalized_prices.push_back(normalized_price);
             }
 
             if storage::has_circuit_breaker(&e) {
@@ -185,15 +167,14 @@ impl OracleAggregatorTrait for OracleAggregator {
                     if index == 0 {
                         continue;
                     }
-                    let price = prices.get(index).unwrap_optimized();
-                    let prev_price = prices.get(index - 1).unwrap_optimized();
+                    let prev_price = prices.get(index).unwrap_optimized();
+                    let price = prices.get(index - 1).unwrap_optimized();
                     if !check_valid_velocity(&e, &asset, &price, &prev_price) {
                         return None;
                     }
                 }
-                Some(prices.clone());
             }
-            return Some(prices);
+            return Some(normalized_prices);
         } else {
             return None;
         }
