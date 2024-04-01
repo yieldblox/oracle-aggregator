@@ -20,6 +20,8 @@ pub trait OracleAggregatorTrait {
 
     fn assets(e: Env) -> Vec<Asset>;
 
+    fn asset_config(e: Env, asset: Asset) -> OracleConfig;
+
     fn price(e: Env, asset: Asset, timestamp: u64) -> Option<PriceData>;
 
     fn last_price(e: Env, asset: Asset) -> Option<PriceData>;

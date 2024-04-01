@@ -53,7 +53,7 @@ impl OracleAggregatorTrait for OracleAggregator {
         storage::set_circuit_breaker(&e, &enable_circuit_breaker);
         if enable_circuit_breaker {
             storage::set_velocity_threshold(&e, &circuit_breaker_threshold);
-            storage::set_circuit_breaker_timeout(&e, &circuit_breaker_timeout);
+            storage::set_timeout(&e, &circuit_breaker_timeout);
         }
     }
 
@@ -69,12 +69,20 @@ impl OracleAggregatorTrait for OracleAggregator {
         storage::get_assets(&e)
     }
 
+    fn asset_config(e: Env, asset: Asset) -> OracleConfig {
+        if storage::has_asset_config(&e, &asset) {
+            return storage::get_asset_config(&e, &asset);
+        } else {
+            panic_with_error!(&e, OracleAggregatorErrors::AssetNotFound);
+        }
+    }
+
     fn price(e: Env, asset: Asset, timestamp: u64) -> Option<PriceData> {
-        if storage::has_circuit_breaker(&e) && storage::get_circuit_breaker_status(&e) {
+        if storage::has_circuit_breaker(&e) && storage::get_circuit_breaker_status(&e, &asset) {
             if storage::get_timeout(&e) < e.ledger().timestamp() {
                 panic_with_error!(&e, OracleAggregatorErrors::CircuitBreakerTripped);
             } else {
-                storage::set_circuit_breaker_status(&e, &false);
+                storage::set_circuit_breaker_status(&e, &asset, &false);
             }
         }
 
@@ -112,11 +120,11 @@ impl OracleAggregatorTrait for OracleAggregator {
     }
 
     fn last_price(e: Env, asset: Asset) -> Option<PriceData> {
-        if storage::has_circuit_breaker(&e) && storage::get_circuit_breaker_status(&e) {
+        if storage::has_circuit_breaker(&e) && storage::get_circuit_breaker_status(&e, &asset) {
             if storage::get_timeout(&e) < e.ledger().timestamp() {
                 panic_with_error!(&e, OracleAggregatorErrors::CircuitBreakerTripped);
             } else {
-                storage::set_circuit_breaker_status(&e, &false);
+                storage::set_circuit_breaker_status(&e, &asset, &false);
             }
         }
 
@@ -157,11 +165,11 @@ impl OracleAggregatorTrait for OracleAggregator {
     }
 
     fn prices(e: Env, asset: Asset, records: u32) -> Option<Vec<PriceData>> {
-        if storage::has_circuit_breaker(&e) && storage::get_circuit_breaker_status(&e) {
+        if storage::has_circuit_breaker(&e) && storage::get_circuit_breaker_status(&e, &asset) {
             if storage::get_timeout(&e) < e.ledger().timestamp() {
                 panic_with_error!(&e, OracleAggregatorErrors::CircuitBreakerTripped);
             } else {
-                storage::set_circuit_breaker_status(&e, &false);
+                storage::set_circuit_breaker_status(&e, &asset, &false);
             }
         }
 

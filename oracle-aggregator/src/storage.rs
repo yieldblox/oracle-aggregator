@@ -2,7 +2,7 @@ use soroban_sdk::{
     contracttype, unwrap::UnwrapOptimized, Address, Env, IntoVal, Symbol, TryFromVal, Val, Vec,
 };
 
-use crate::types::{Asset, OracleConfig, PriceData};
+use crate::types::{Asset, OracleConfig};
 
 const ADMIN_KEY: &str = "Admin";
 const IS_INIT_KEY: &str = "IsInit";
@@ -11,9 +11,8 @@ const BASE_KEY: &str = "Base";
 const DECIMALS_KEY: &str = "Decimals";
 
 const CIRCUIT_BREAKER_KEY: &str = "CircuitBreaker";
-const VELOCITY_THRESHOLD_KEY: &str = "VelocityThreshold";
-const STATUS_KEY: &str = "Status";
 const TIMEOUT_KEY: &str = "Timeout";
+const VELOCITY_THRESHOLD_KEY: &str = "VelocityThreshold";
 const CIRCUIT_BREAKER_TIMEOUT_KEY: &str = "CircuitBreakerTimeout";
 
 const ONE_DAY_LEDGERS: u32 = 17280; // assumes 5 seconds per ledger on average
@@ -24,6 +23,8 @@ const LEDGER_BUMP_SHARED: u32 = 15 * ONE_DAY_LEDGERS;
 #[contracttype]
 pub enum AggregatorDataKey {
     AssetConfig(Asset),
+    CircuitBreakerStatus(Asset),
+    CircuitBreakerTimeout(Asset),
 }
 
 //********** Storage Utils **********//
@@ -197,35 +198,6 @@ pub fn get_velocity_threshold(e: &Env) -> u32 {
     )
 }
 
-pub fn set_last_price(e: &Env, asset: &Asset, price: &PriceData) {
-    e.storage()
-        .persistent()
-        .set::<Asset, PriceData>(asset, price);
-}
-
-pub fn get_last_price(e: &Env, asset: &Asset) -> Option<PriceData> {
-    e.storage()
-        .persistent()
-        .extend_ttl(asset, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
-    e.storage().persistent().get::<Asset, PriceData>(asset)
-}
-
-pub fn set_circuit_breaker_status(e: &Env, status: &bool) {
-    e.storage()
-        .persistent()
-        .set::<Symbol, bool>(&Symbol::new(&e, STATUS_KEY), status);
-}
-
-pub fn get_circuit_breaker_status(e: &Env) -> bool {
-    get_persistent_default(
-        &e,
-        &Symbol::new(&e, STATUS_KEY),
-        false,
-        LEDGER_THRESHOLD_SHARED,
-        LEDGER_BUMP_SHARED,
-    )
-}
-
 pub fn set_timeout(e: &Env, timeout: &u64) {
     e.storage()
         .persistent()
@@ -244,20 +216,39 @@ pub fn get_timeout(e: &Env) -> u64 {
         .unwrap()
 }
 
-pub fn set_circuit_breaker_timeout(e: &Env, timeout: &u64) {
+/********** Temporary **********/
+
+pub fn set_circuit_breaker_status(e: &Env, asset: &Asset, status: &bool) {
+    let key = AggregatorDataKey::CircuitBreakerStatus(asset.clone());
+    let timeout = get_timeout(&e);
+    let ledgers = (timeout / 5 + 17280) as u32;
     e.storage()
-        .persistent()
-        .set::<Symbol, u64>(&Symbol::new(&e, CIRCUIT_BREAKER_TIMEOUT_KEY), timeout);
+        .temporary()
+        .set::<AggregatorDataKey, bool>(&key, status);
+    e.storage().temporary().extend_ttl(&key, ledgers, ledgers);
 }
 
-pub fn get_circuit_breaker_timeout(e: &Env) -> u64 {
-    e.storage().persistent().extend_ttl(
-        &Symbol::new(&e, CIRCUIT_BREAKER_TIMEOUT_KEY),
-        LEDGER_THRESHOLD_SHARED,
-        LEDGER_BUMP_SHARED,
-    );
+pub fn get_circuit_breaker_status(e: &Env, asset: &Asset) -> bool {
+    let key = AggregatorDataKey::CircuitBreakerStatus(asset.clone());
     e.storage()
-        .persistent()
-        .get::<Symbol, u64>(&Symbol::new(&e, CIRCUIT_BREAKER_TIMEOUT_KEY))
+        .temporary()
+        .get::<AggregatorDataKey, bool>(&key)
+        .unwrap_or(false)
+}
+
+pub fn set_circuit_breaker_timeout(e: &Env, asset: &Asset, timeout: &u64) {
+    let ledgers = (timeout / 5 + 17280) as u32;
+    let key = AggregatorDataKey::CircuitBreakerTimeout(asset.clone());
+    e.storage()
+        .temporary()
+        .set::<AggregatorDataKey, u64>(&key, timeout);
+    e.storage().temporary().extend_ttl(&key, ledgers, ledgers)
+}
+
+pub fn get_circuit_breaker_timeout(e: &Env, asset: &Asset) -> u64 {
+    let key = AggregatorDataKey::CircuitBreakerTimeout(asset.clone());
+    e.storage()
+        .temporary()
+        .get::<AggregatorDataKey, u64>(&key)
         .unwrap()
 }
