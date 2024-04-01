@@ -3,8 +3,8 @@ use crate::{
     errors::OracleAggregatorErrors,
     oracle_aggregator::OracleAggregatorTrait,
     price_data::normalize_price,
-    storage::{self},
-    types::{Asset, OracleConfig, PriceData},
+    storage,
+    types::{Asset, OracleConfig, PriceData, SettingsConfig},
 };
 use soroban_sdk::{
     contract, contractimpl, panic_with_error, unwrap::UnwrapOptimized, vec, Address, Env, IntoVal,
@@ -15,45 +15,35 @@ pub struct OracleAggregator;
 
 #[contractimpl]
 impl OracleAggregatorTrait for OracleAggregator {
-    fn initialize(
-        e: Env,
-        admin: Address,
-        assets: Vec<Asset>,
-        asset_configs: Vec<OracleConfig>,
-        decimals: u32,
-        base: Asset,
-        enable_circuit_breaker: bool,
-        circuit_breaker_threshold: u32,
-        circuit_breaker_timeout: u64,
-    ) {
+    fn initialize(e: Env, admin: Address, config: SettingsConfig) {
         if storage::get_is_init(&e) {
             panic_with_error!(&e, OracleAggregatorErrors::AlreadyInitialized);
         }
 
-        if assets.len() > 0 {
+        if config.assets.len() <= 0 {
             panic_with_error!(&e, OracleAggregatorErrors::NoOracles);
         }
 
-        if assets.len() != asset_configs.len() {
+        if config.assets.len() != config.asset_configs.len() {
             panic_with_error!(&e, OracleAggregatorErrors::InvalidOracleConfig);
         }
 
-        for index in 0..assets.len() {
-            let asset = assets.get(index).unwrap_optimized();
-            let config = asset_configs.get(index).unwrap_optimized();
+        for index in 0..config.assets.len() {
+            let asset = config.assets.get(index).unwrap_optimized();
+            let config = config.asset_configs.get(index).unwrap_optimized();
             storage::set_asset_config(&e, &asset, &config);
         }
 
         storage::extend_instance(&e);
         storage::set_is_init(&e);
         storage::set_admin(&e, &admin);
-        storage::set_base(&e, &base);
-        storage::set_decimals(&e, &decimals);
-        storage::set_assets(&e, &assets);
-        storage::set_circuit_breaker(&e, &enable_circuit_breaker);
-        if enable_circuit_breaker {
-            storage::set_velocity_threshold(&e, &circuit_breaker_threshold);
-            storage::set_timeout(&e, &circuit_breaker_timeout);
+        storage::set_base(&e, &config.base);
+        storage::set_decimals(&e, &config.decimals);
+        storage::set_assets(&e, &config.assets);
+        storage::set_circuit_breaker(&e, &config.enable_circuit_breaker);
+        if config.enable_circuit_breaker {
+            storage::set_velocity_threshold(&e, &config.circuit_breaker_threshold);
+            storage::set_timeout(&e, &config.circuit_breaker_timeout);
         }
     }
 

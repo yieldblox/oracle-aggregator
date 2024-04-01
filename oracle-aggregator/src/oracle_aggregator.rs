@@ -1,18 +1,8 @@
-use crate::types::{Asset, OracleConfig, PriceData};
+use crate::types::{Asset, OracleConfig, PriceData, SettingsConfig};
 use soroban_sdk::{contractclient, Address, Env, Vec};
 #[contractclient(name = "OracleAggregator")]
 pub trait OracleAggregatorTrait {
-    fn initialize(
-        e: Env,
-        admin: Address,
-        assets: Vec<Asset>,
-        asset_configs: Vec<OracleConfig>,
-        decimals: u32,
-        base: Asset,
-        enbable_circuit_breaker: bool,
-        circuit_breaker_threshold: u32,
-        circuit_breaker_timeout: u64,
-    );
+    fn initialize(e: Env, admin: Address, config: SettingsConfig);
 
     fn base(e: Env) -> Asset;
 
