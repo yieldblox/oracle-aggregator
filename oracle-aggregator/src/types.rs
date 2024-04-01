@@ -31,6 +31,8 @@ pub struct SettingsConfig {
     pub decimals: u32,
     pub base: Asset,
     pub enable_circuit_breaker: bool,
+    // The velocity threshold (5 decimals)
     pub circuit_breaker_threshold: u32,
+    // The timeout for the circuit breaker (in seconds)
     pub circuit_breaker_timeout: u64,
 }

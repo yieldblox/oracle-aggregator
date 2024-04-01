@@ -11,7 +11,6 @@ const BASE_KEY: &str = "Base";
 const DECIMALS_KEY: &str = "Decimals";
 
 const CIRCUIT_BREAKER_KEY: &str = "CircuitBreaker";
-const TIMEOUT_KEY: &str = "Timeout";
 const VELOCITY_THRESHOLD_KEY: &str = "VelocityThreshold";
 const CIRCUIT_BREAKER_TIMEOUT_KEY: &str = "CircuitBreakerTimeout";
 
@@ -201,12 +200,12 @@ pub fn get_velocity_threshold(e: &Env) -> u32 {
 pub fn set_timeout(e: &Env, timeout: &u64) {
     e.storage()
         .persistent()
-        .set::<Symbol, u64>(&Symbol::new(&e, TIMEOUT_KEY), timeout);
+        .set::<Symbol, u64>(&Symbol::new(&e, CIRCUIT_BREAKER_TIMEOUT_KEY), timeout);
 }
 
 pub fn get_timeout(e: &Env) -> u64 {
     e.storage().persistent().extend_ttl(
-        &Symbol::new(&e, TIMEOUT_KEY),
+        &Symbol::new(&e, CIRCUIT_BREAKER_TIMEOUT_KEY),
         LEDGER_THRESHOLD_SHARED,
         LEDGER_BUMP_SHARED,
     );
@@ -236,12 +235,13 @@ pub fn get_circuit_breaker_status(e: &Env, asset: &Asset) -> bool {
         .unwrap_or(false)
 }
 
-pub fn set_circuit_breaker_timeout(e: &Env, asset: &Asset, timeout: &u64) {
+pub fn set_circuit_breaker_timeout(e: &Env, asset: &Asset, asset_timeout: &u64) {
+    let timeout = get_timeout(&e);
     let ledgers = (timeout / 5 + 17280) as u32;
     let key = AggregatorDataKey::CircuitBreakerTimeout(asset.clone());
     e.storage()
         .temporary()
-        .set::<AggregatorDataKey, u64>(&key, timeout);
+        .set::<AggregatorDataKey, u64>(&key, asset_timeout);
     e.storage().temporary().extend_ttl(&key, ledgers, ledgers)
 }
 
