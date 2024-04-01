@@ -7,3 +7,5 @@ target
 
 # macOS-specific files
 .DS_Store
+
+test_snapshots
