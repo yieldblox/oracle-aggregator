@@ -250,5 +250,5 @@ pub fn get_circuit_breaker_timeout(e: &Env, asset: &Asset) -> u64 {
     e.storage()
         .temporary()
         .get::<AggregatorDataKey, u64>(&key)
-        .unwrap()
+        .unwrap_or(0)
 }

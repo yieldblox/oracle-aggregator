@@ -17,3 +17,27 @@ pub fn normalize_price(
         return price_data;
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_normalize_price() {
+        let price = PriceData {
+            price: 1_2345678,
+            timestamp: 100,
+        };
+        let normalized_price = normalize_price(price.clone(), &6, &7);
+        assert_eq!(normalized_price.price, 1234567);
+
+        let normalized_price = normalize_price(price.clone(), &8, &7);
+        assert_eq!(normalized_price.price, 123456780);
+
+        let normalized_price = normalize_price(price.clone(), &18, &7);
+        assert_eq!(normalized_price.price, 1234567800000000000);
+
+        let normalized_price = normalize_price(price, &2, &7);
+        assert_eq!(normalized_price.price, 123);
+    }
+}
