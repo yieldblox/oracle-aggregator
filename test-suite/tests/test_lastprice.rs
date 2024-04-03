@@ -73,9 +73,7 @@ fn test_lastprice_circuit_breaker() {
     }
 
     assert_eq!(
-        oracle_aggregator_client
-            .try_price(&asset, &(e.ledger().timestamp()),)
-            .err(),
+        oracle_aggregator_client.try_last_price(&asset).err(),
         Some(Ok(Error::from_contract_error(104)))
     );
 

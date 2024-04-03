@@ -12,11 +12,7 @@ pub trait OracleAggregatorTrait {
 
     fn asset_config(e: Env, asset: Asset) -> OracleConfig;
 
-    fn price(e: Env, asset: Asset, timestamp: u64) -> Option<PriceData>;
-
     fn last_price(e: Env, asset: Asset) -> Option<PriceData>;
-
-    fn prices(e: Env, asset: Asset, records: u32) -> Option<Vec<PriceData>>;
 
     fn remove_asset(e: Env, asset: Asset);
 }

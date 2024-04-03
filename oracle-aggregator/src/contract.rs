@@ -67,42 +67,6 @@ impl OracleAggregatorTrait for OracleAggregator {
         }
     }
 
-    fn price(e: Env, asset: Asset, timestamp: u64) -> Option<PriceData> {
-        if !storage::has_asset_config(&e, &asset) {
-            panic_with_error!(&e, OracleAggregatorErrors::AssetNotFound);
-        }
-        check_circuit_breaker(&e, &asset);
-
-        let config = storage::get_asset_config(&e, &asset);
-        let normalized_timestamp = timestamp / config.resolution * config.resolution;
-        let price: Option<PriceData> = e.invoke_contract(
-            &config.oracle_id,
-            &Symbol::new(&e, "price"),
-            vec![&e, asset.into_val(&e), normalized_timestamp.into_val(&e)],
-        );
-
-        if let Some(price) = price {
-            let decimals = storage::get_decimals(&e);
-            let normalized_price = normalize_price(price.clone(), &decimals, &config.decimals);
-            if storage::has_circuit_breaker(&e) {
-                let prev_timestamp = price.timestamp - config.resolution;
-                let prev_price: Option<PriceData> = e.invoke_contract(
-                    &config.oracle_id,
-                    &Symbol::new(&e, "price"),
-                    vec![&e, asset.into_val(&e), prev_timestamp.into_val(&e)],
-                );
-                if prev_price.is_some()
-                    && !check_valid_velocity(&e, &asset, &price, &prev_price.unwrap_optimized())
-                {
-                    return None;
-                }
-            }
-            return Some(normalized_price);
-        } else {
-            return None;
-        }
-    }
-
     fn last_price(e: Env, asset: Asset) -> Option<PriceData> {
         if !storage::has_asset_config(&e, &asset) {
             panic_with_error!(&e, OracleAggregatorErrors::AssetNotFound);
@@ -136,45 +100,6 @@ impl OracleAggregatorTrait for OracleAggregator {
             }
 
             return Some(normalized_price);
-        } else {
-            return None;
-        }
-    }
-
-    fn prices(e: Env, asset: Asset, records: u32) -> Option<Vec<PriceData>> {
-        if !storage::has_asset_config(&e, &asset) {
-            panic_with_error!(&e, OracleAggregatorErrors::AssetNotFound);
-        }
-        check_circuit_breaker(&e, &asset);
-
-        let config = storage::get_asset_config(&e, &asset);
-        let prices: Option<Vec<PriceData>> = e.invoke_contract(
-            &config.oracle_id,
-            &Symbol::new(&e, "prices"),
-            vec![&e, asset.into_val(&e), records.into_val(&e)],
-        );
-
-        if let Some(prices) = prices {
-            let mut normalized_prices = Vec::new(&e);
-            for price in prices.iter() {
-                let decimals = storage::get_decimals(&e);
-                let normalized_price = normalize_price(price.clone(), &decimals, &config.decimals);
-                normalized_prices.push_back(normalized_price);
-            }
-
-            if storage::has_circuit_breaker(&e) {
-                for index in 0..prices.len() {
-                    if index == 0 {
-                        continue;
-                    }
-                    let prev_price = prices.get(index).unwrap_optimized();
-                    let price = prices.get(index - 1).unwrap_optimized();
-                    if !check_valid_velocity(&e, &asset, &price, &prev_price) {
-                        return None;
-                    }
-                }
-            }
-            return Some(normalized_prices);
         } else {
             return None;
         }
