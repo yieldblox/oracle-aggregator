@@ -1,7 +1,6 @@
 use crate::{
     circuit_breaker::{check_circuit_breaker, check_valid_velocity},
     errors::OracleAggregatorErrors,
-    oracle_aggregator::OracleAggregatorTrait,
     price_data::normalize_price,
     storage,
     types::{Asset, OracleConfig, PriceData, SettingsConfig},
@@ -14,7 +13,7 @@ use soroban_sdk::{
 pub struct OracleAggregator;
 
 #[contractimpl]
-impl OracleAggregatorTrait for OracleAggregator {
+impl OracleAggregator {
     fn initialize(e: Env, admin: Address, config: SettingsConfig) {
         if storage::get_is_init(&e) {
             panic_with_error!(&e, OracleAggregatorErrors::AlreadyInitialized);
