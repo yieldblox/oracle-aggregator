@@ -1,9 +1,8 @@
-use oracle_aggregator::types::{Asset, PriceData};
+#![cfg(test)]
+use crate::testutils::{create_oracle_aggregator, default_aggregator_settings, EnvTestUtils};
+use crate::types::{Asset, PriceData};
 use soroban_sdk::{testutils::Address as _, Address, Env, Error, Symbol, Vec};
-use test_suite::{
-    env::EnvTestUtils,
-    oracle_aggregator::{create_oracle_aggregator, default_aggregator_settings},
-};
+
 #[test]
 fn test_lastprice() {
     let e = Env::default();

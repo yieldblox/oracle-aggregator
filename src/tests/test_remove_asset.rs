@@ -1,11 +1,11 @@
-use oracle_aggregator::types::Asset;
+#![cfg(test)]
+use crate::{
+    testutils::{create_oracle_aggregator, default_aggregator_settings, EnvTestUtils},
+    types::Asset,
+};
 use soroban_sdk::{
     testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation},
     vec, Address, Env, Error, IntoVal, Symbol,
-};
-use test_suite::{
-    env::EnvTestUtils,
-    oracle_aggregator::{create_oracle_aggregator, default_aggregator_settings},
 };
 
 #[test]

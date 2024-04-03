@@ -14,7 +14,7 @@ pub struct OracleAggregator;
 
 #[contractimpl]
 impl OracleAggregator {
-    fn initialize(e: Env, admin: Address, config: SettingsConfig) {
+    pub fn initialize(e: Env, admin: Address, config: SettingsConfig) {
         if storage::get_is_init(&e) {
             panic_with_error!(&e, OracleAggregatorErrors::AlreadyInitialized);
         }
@@ -46,19 +46,19 @@ impl OracleAggregator {
         }
     }
 
-    fn base(e: Env) -> Asset {
+    pub fn base(e: Env) -> Asset {
         storage::get_base(&e)
     }
 
-    fn decimals(e: Env) -> u32 {
+    pub fn decimals(e: Env) -> u32 {
         storage::get_decimals(&e)
     }
 
-    fn assets(e: Env) -> Vec<Asset> {
+    pub fn assets(e: Env) -> Vec<Asset> {
         storage::get_assets(&e)
     }
 
-    fn asset_config(e: Env, asset: Asset) -> OracleConfig {
+    pub fn asset_config(e: Env, asset: Asset) -> OracleConfig {
         if storage::has_asset_config(&e, &asset) {
             return storage::get_asset_config(&e, &asset);
         } else {
@@ -66,7 +66,7 @@ impl OracleAggregator {
         }
     }
 
-    fn last_price(e: Env, asset: Asset) -> Option<PriceData> {
+    pub fn last_price(e: Env, asset: Asset) -> Option<PriceData> {
         if !storage::has_asset_config(&e, &asset) {
             panic_with_error!(&e, OracleAggregatorErrors::AssetNotFound);
         }
@@ -104,7 +104,7 @@ impl OracleAggregator {
         }
     }
 
-    fn remove_asset(e: Env, asset: Asset) {
+    pub fn remove_asset(e: Env, asset: Asset) {
         let admin = storage::get_admin(&e);
         admin.require_auth();
 

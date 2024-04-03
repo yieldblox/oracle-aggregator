@@ -1,8 +1,7 @@
+#![cfg(test)]
+use crate::testutils::{create_oracle_aggregator, default_aggregator_settings, EnvTestUtils};
 use soroban_sdk::{testutils::Address as _, Address, Env, Vec};
-use test_suite::{
-    env::EnvTestUtils,
-    oracle_aggregator::{create_oracle_aggregator, default_aggregator_settings},
-};
+
 #[test]
 fn test_initalize() {
     let e = Env::default();

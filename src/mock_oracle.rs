@@ -1,4 +1,5 @@
-use oracle_aggregator::types::{Asset, PriceData};
+#![cfg(test)]
+use crate::types::{Asset, PriceData};
 use soroban_sdk::{contract, contractimpl, Address, Env, Vec};
 #[contract]
 pub struct MockOracle;
