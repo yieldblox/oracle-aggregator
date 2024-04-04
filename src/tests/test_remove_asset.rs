@@ -1,13 +1,10 @@
 #![cfg(test)]
-use crate::{
-    testutils::{create_oracle_aggregator, default_aggregator_settings, EnvTestUtils},
-    types::Asset,
-};
+use crate::testutils::{create_oracle_aggregator, default_aggregator_settings, EnvTestUtils};
+use sep_40_oracle::Asset;
 use soroban_sdk::{
     testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation},
     vec, Address, Env, Error, IntoVal, Symbol,
 };
-
 #[test]
 fn test_remove_asset() {
     let e = Env::default();

@@ -1,5 +1,4 @@
-use crate::types::PriceData;
-
+use sep_40_oracle::PriceData;
 pub fn normalize_price(
     mut price_data: PriceData,
     decimals: &u32,

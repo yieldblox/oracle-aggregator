@@ -1,5 +1,8 @@
 #![cfg(test)]
-use crate::testutils::{create_oracle_aggregator, default_aggregator_settings, EnvTestUtils};
+use crate::testutils::{
+    assert_assets_equal, create_oracle_aggregator, default_aggregator_settings, EnvTestUtils,
+};
+
 use soroban_sdk::{testutils::Address as _, Address, Env, Vec};
 
 #[test]
@@ -11,12 +14,27 @@ fn test_initalize() {
     let (settings_config, _, _) = default_aggregator_settings(&e);
     let (_, oracle_aggregator_client) = create_oracle_aggregator(&e, &admin, &settings_config);
 
-    assert_eq!(oracle_aggregator_client.base(), settings_config.base);
+    assert!(assert_assets_equal(
+        oracle_aggregator_client.base(),
+        settings_config.base
+    ));
+
     assert_eq!(
         oracle_aggregator_client.decimals(),
         settings_config.decimals
     );
-    assert_eq!(oracle_aggregator_client.assets(), settings_config.assets);
+
+    let assets = oracle_aggregator_client.assets();
+    assert_eq!(
+        oracle_aggregator_client.assets().len(),
+        settings_config.assets.len()
+    );
+    for index in 0..assets.len() {
+        assert_assets_equal(
+            assets.get(index).unwrap(),
+            settings_config.assets.get(index).unwrap(),
+        );
+    }
     for (index, asset) in settings_config.assets.iter().enumerate() {
         let config = oracle_aggregator_client.asset_config(&asset);
         let expected_config = settings_config.asset_configs.get(index as u32).unwrap();

@@ -1,20 +1,5 @@
-use soroban_sdk::{contracttype, Address, Symbol, Vec};
-
-/// Price data for an asset at a specific timestamp
-#[contracttype]
-#[derive(Clone)]
-pub struct PriceData {
-    pub price: i128,
-    pub timestamp: u64,
-}
-
-#[contracttype]
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum Asset {
-    Stellar(Address),
-    Other(Symbol),
-}
-
+use sep_40_oracle::Asset;
+use soroban_sdk::{contracttype, Address, Vec};
 #[contracttype]
 #[derive(Clone)]
 pub struct OracleConfig {

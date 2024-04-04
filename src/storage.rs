@@ -1,8 +1,8 @@
+use crate::types::OracleConfig;
+use sep_40_oracle::Asset;
 use soroban_sdk::{
     contracttype, unwrap::UnwrapOptimized, Address, Env, IntoVal, Symbol, TryFromVal, Val, Vec,
 };
-
-use crate::types::{Asset, OracleConfig};
 
 const ADMIN_KEY: &str = "Admin";
 const IS_INIT_KEY: &str = "IsInit";

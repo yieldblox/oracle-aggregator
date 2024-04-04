@@ -1,7 +1,11 @@
 #![cfg(test)]
 use crate::{
-    types::{Asset, OracleConfig, PriceData, SettingsConfig},
+    types::{OracleConfig, SettingsConfig},
     OracleAggregator, OracleAggregatorClient,
+};
+use sep_40_oracle::{
+    testutils::{Asset as MockAsset, MockPriceOracleClient, MockPriceOracleWASM},
+    Asset,
 };
 use soroban_sdk::{
     testutils::{Address as _, Ledger, LedgerInfo},
@@ -14,7 +18,7 @@ mod oracle_aggregator_wasm {
 }
 use oracle_aggregator_wasm::WASM as OracleAggregatorWasm;
 
-use crate::mock_oracle::{MockOracle, MockOracleClient};
+// use crate::mock_oracle::{MockOracle, MockPriceOracleClient};
 
 const ONE_DAY_LEDGERS: u32 = 24 * 60 * 60 / 5;
 
@@ -83,79 +87,60 @@ pub fn create_oracle_aggregator_wasm<'a>(
 
 pub fn default_aggregator_settings(
     e: &Env,
-) -> (SettingsConfig, MockOracleClient, MockOracleClient) {
-    let xlm = Asset::Stellar(Address::generate(&e));
+) -> (SettingsConfig, MockPriceOracleClient, MockPriceOracleClient) {
+    let xlm_id = Address::generate(&e);
+    let xlm = Asset::Stellar(xlm_id.clone());
     let usdc = Asset::Other(Symbol::new(&e, "USDC"));
     let weth = Asset::Other(Symbol::new(&e, "wETH"));
 
     let assets = Vec::from_array(&e, [xlm.clone(), usdc.clone(), weth.clone()]);
 
-    let xlm_usdc_oracle_id = e.register_contract(None, MockOracle {});
-    let xlm_usdc_oracle: MockOracleClient = MockOracleClient::new(&e, &xlm_usdc_oracle_id);
-    xlm_usdc_oracle.set_prices(
-        &xlm,
+    let xlm_usdc_oracle_id = e.register_contract_wasm(None, MockPriceOracleWASM);
+    let xlm_usdc_oracle = MockPriceOracleClient::new(&e, &xlm_usdc_oracle_id);
+    xlm_usdc_oracle.set_data(
+        &Address::generate(&e),
+        &MockAsset::Other(Symbol::new(&e, "USDC")),
         &Vec::from_array(
             &e,
             [
-                PriceData {
-                    price: 0_110000000,
-                    timestamp: e.ledger().timestamp(),
-                },
-                PriceData {
-                    price: 0_100000000,
-                    timestamp: e.ledger().timestamp() - 300,
-                },
-                PriceData {
-                    price: 0_120000000,
-                    timestamp: e.ledger().timestamp() - 300 * 2,
-                },
+                MockAsset::Stellar(xlm_id.clone()),
+                MockAsset::Other(Symbol::new(&e, "USDC")),
             ],
         ),
+        &9,
+        &300,
+    );
+    xlm_usdc_oracle.set_price(
+        &Vec::from_array(&e, [0_120000000, 1_010000000]),
+        &(e.ledger().timestamp() - 300 * 2),
+    );
+    xlm_usdc_oracle.set_price(
+        &Vec::from_array(&e, [0_100000000, 0_990000000]),
+        &(e.ledger().timestamp() - 300),
+    );
+    xlm_usdc_oracle.set_price(
+        &Vec::from_array(&e, [0_110000000, 1_000000000]),
+        &e.ledger().timestamp(),
     );
 
-    xlm_usdc_oracle.set_prices(
-        &usdc,
-        &Vec::from_array(
-            &e,
-            [
-                PriceData {
-                    price: 1_000000000,
-                    timestamp: e.ledger().timestamp(),
-                },
-                PriceData {
-                    price: 0_990000000,
-                    timestamp: e.ledger().timestamp() - 300,
-                },
-                PriceData {
-                    price: 1_010000000,
-                    timestamp: e.ledger().timestamp() - 300 * 2,
-                },
-            ],
-        ),
+    let weth_oracle_id = e.register_contract_wasm(None, MockPriceOracleWASM);
+    let weth_oracle = MockPriceOracleClient::new(&e, &weth_oracle_id);
+    weth_oracle.set_data(
+        &Address::generate(&e),
+        &MockAsset::Other(Symbol::new(&e, "USDC")),
+        &Vec::from_array(&e, [MockAsset::Other(Symbol::new(&e, "wETH"))]),
+        &6,
+        &600,
     );
-
-    let weth_oracle_id = e.register_contract(None, MockOracle {});
-    let weth_oracle: MockOracleClient = MockOracleClient::new(&e, &weth_oracle_id);
-    weth_oracle.set_prices(
-        &weth,
-        &Vec::from_array(
-            &e,
-            [
-                PriceData {
-                    price: 1010_000000,
-                    timestamp: e.ledger().timestamp(),
-                },
-                PriceData {
-                    price: 1010_000000,
-                    timestamp: e.ledger().timestamp() - 600,
-                },
-                PriceData {
-                    price: 999_000000,
-                    timestamp: e.ledger().timestamp() - 600 * 2,
-                },
-            ],
-        ),
+    weth_oracle.set_price(
+        &Vec::from_array(&e, [999_000000]),
+        &(e.ledger().timestamp() - 600 * 2),
     );
+    weth_oracle.set_price(
+        &Vec::from_array(&e, [1010_000000]),
+        &(e.ledger().timestamp() - 600),
+    );
+    weth_oracle.set_price(&Vec::from_array(&e, [1010_000000]), &e.ledger().timestamp());
 
     let asset_configs = Vec::from_array(
         &e,
@@ -193,4 +178,12 @@ pub fn default_aggregator_settings(
         xlm_usdc_oracle,
         weth_oracle,
     );
+}
+
+pub fn assert_assets_equal(a: Asset, b: Asset) -> bool {
+    match (a, b) {
+        (Asset::Stellar(a), Asset::Stellar(b)) => a == b,
+        (Asset::Other(a), Asset::Other(b)) => a == b,
+        _ => false,
+    }
 }

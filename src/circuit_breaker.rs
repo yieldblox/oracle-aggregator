@@ -1,8 +1,5 @@
-use crate::{
-    errors::OracleAggregatorErrors,
-    storage,
-    types::{Asset, PriceData},
-};
+use crate::{errors::OracleAggregatorErrors, storage};
+use sep_40_oracle::{Asset, PriceData};
 use soroban_sdk::{panic_with_error, Env};
 
 pub fn check_valid_velocity(

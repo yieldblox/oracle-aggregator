@@ -6,7 +6,6 @@ extern crate std;
 pub mod circuit_breaker;
 pub mod contract;
 pub mod errors;
-pub mod mock_oracle;
 pub mod price_data;
 pub mod storage;
 pub mod testutils;
