@@ -9,4 +9,5 @@ pub enum OracleAggregatorErrors {
     CircuitBreakerTripped = 104,
     AssetNotFound = 105,
     InvalidTimestamp = 106,
+    AssetBlocked = 107,
 }

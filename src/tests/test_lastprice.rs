@@ -99,3 +99,18 @@ fn test_lastprice_asset_not_found() {
 
     oracle_aggregator_client.lastprice(&Asset::Other(Symbol::new(&e, "NOT_FOUND")));
 }
+
+#[test]
+#[should_panic(expected = "Error(Contract, #107)")]
+fn test_lastprice_asset_blocked() {
+    let e = Env::default();
+    e.set_default_info();
+    e.mock_all_auths();
+    let admin = Address::generate(&e);
+    let (settings_config, _, _) = default_aggregator_settings(&e);
+    let (_, oracle_aggregator_client) = create_oracle_aggregator(&e, &admin, &settings_config);
+
+    let xlm = settings_config.assets.get(0).unwrap();
+    oracle_aggregator_client.block_asset(&xlm);
+    oracle_aggregator_client.lastprice(&xlm);
+}

@@ -42,6 +42,9 @@ impl PriceFeedTrait for OracleAggregator {
         if !storage::has_asset_config(&e, &asset) {
             panic_with_error!(&e, OracleAggregatorErrors::AssetNotFound);
         }
+        if storage::get_blocked_status(&e, &asset) {
+            panic_with_error!(&e, OracleAggregatorErrors::AssetBlocked);
+        }
         check_circuit_breaker(&e, &asset);
 
         let config = storage::get_asset_config(&e, &asset);
@@ -138,5 +141,25 @@ impl OracleAggregator {
             }
         }
         storage::set_assets(&e, &assets);
+    }
+
+    pub fn block_asset(e: Env, asset: Asset) {
+        let admin = storage::get_admin(&e);
+        admin.require_auth();
+
+        if !storage::has_asset_config(&e, &asset) {
+            panic_with_error!(&e, OracleAggregatorErrors::AssetNotFound);
+        }
+        storage::set_blocked_status(&e, &asset, &true);
+    }
+
+    pub fn unblock_asset(e: Env, asset: Asset) {
+        let admin = storage::get_admin(&e);
+        admin.require_auth();
+
+        if !storage::has_asset_config(&e, &asset) {
+            panic_with_error!(&e, OracleAggregatorErrors::AssetNotFound);
+        }
+        storage::set_blocked_status(&e, &asset, &false);
     }
 }
