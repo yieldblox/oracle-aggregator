@@ -6,6 +6,8 @@ pub struct OracleConfig {
     pub oracle_id: Address,
     pub decimals: u32,
     pub resolution: u64,
+    // The asset to be used when fetching the price
+    pub asset: Asset,
 }
 
 #[contracttype]
