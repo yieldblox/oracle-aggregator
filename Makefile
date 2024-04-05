@@ -6,7 +6,7 @@ test: build
 build:
 	mkdir -p target/wasm32-unknown-unknown/optimized
 
-	cargo rustc --manifest-path=oracle-aggregator/Cargo.toml --crate-type=cdylib --target=wasm32-unknown-unknown --release 
+	cargo rustc --manifest-path=Cargo.toml --crate-type=cdylib --target=wasm32-unknown-unknown --release 
 	soroban contract optimize \
 		--wasm target/wasm32-unknown-unknown/release/oracle_aggregator.wasm \
 		--wasm-out target/wasm32-unknown-unknown/optimized/oracle_aggregator.wasm
