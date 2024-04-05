@@ -49,14 +49,14 @@ impl PriceFeedTrait for OracleAggregator {
 
         let config = storage::get_asset_config(&e, &asset);
         let oracle = PriceFeedClient::new(&e, &config.oracle_id);
-        let price: Option<PriceData> = oracle.lastprice(&asset);
+        let price: Option<PriceData> = oracle.lastprice(&config.asset);
         if let Some(price) = price {
             let decimals = storage::get_decimals(&e);
             let normalized_price = normalize_price(price.clone(), &decimals, &config.decimals);
 
             if storage::has_circuit_breaker(&e) {
                 let prev_timestamp = price.timestamp - config.resolution;
-                let prev_price: Option<PriceData> = oracle.price(&asset, &prev_timestamp);
+                let prev_price: Option<PriceData> = oracle.price(&config.asset, &prev_timestamp);
 
                 if prev_price.is_some()
                     && !check_valid_velocity(&e, &asset, &price, &prev_price.unwrap_optimized())

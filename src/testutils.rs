@@ -88,12 +88,22 @@ pub fn create_oracle_aggregator_wasm<'a>(
 pub fn default_aggregator_settings(
     e: &Env,
 ) -> (SettingsConfig, MockPriceOracleClient, MockPriceOracleClient) {
-    let xlm_id = Address::generate(&e);
-    let xlm = Asset::Stellar(xlm_id.clone());
-    let usdc = Asset::Other(Symbol::new(&e, "USDC"));
-    let weth = Asset::Other(Symbol::new(&e, "wETH"));
+    let oracle_xlm = Asset::Other(Symbol::new(&e, "XLM"));
+    let oracle_usdc = Asset::Other(Symbol::new(&e, "USDC"));
+    let oracle_weth = Asset::Other(Symbol::new(&e, "wETH"));
 
-    let assets = Vec::from_array(&e, [xlm.clone(), usdc.clone(), weth.clone()]);
+    let aggregator_xlm = Asset::Stellar(Address::generate(&e));
+    let aggregator_usdc = Asset::Stellar(Address::generate(&e));
+    let aggregator_weth = Asset::Other(Symbol::new(&e, "wETH"));
+
+    let assets = Vec::from_array(
+        &e,
+        [
+            aggregator_xlm.clone(),
+            aggregator_usdc.clone(),
+            aggregator_weth.clone(),
+        ],
+    );
 
     let xlm_usdc_oracle_id = e.register_contract_wasm(None, MockPriceOracleWASM);
     let xlm_usdc_oracle = MockPriceOracleClient::new(&e, &xlm_usdc_oracle_id);
@@ -103,7 +113,7 @@ pub fn default_aggregator_settings(
         &Vec::from_array(
             &e,
             [
-                MockAsset::Stellar(xlm_id.clone()),
+                MockAsset::Other(Symbol::new(&e, "XLM")),
                 MockAsset::Other(Symbol::new(&e, "USDC")),
             ],
         ),
@@ -149,16 +159,19 @@ pub fn default_aggregator_settings(
                 oracle_id: xlm_usdc_oracle_id.clone(),
                 decimals: 9,
                 resolution: 300,
+                asset: oracle_xlm,
             },
             OracleConfig {
                 oracle_id: xlm_usdc_oracle_id,
                 decimals: 9,
                 resolution: 300,
+                asset: oracle_usdc,
             },
             OracleConfig {
                 oracle_id: weth_oracle_id,
                 decimals: 6,
                 resolution: 600,
+                asset: oracle_weth,
             },
         ],
     );
@@ -168,7 +181,7 @@ pub fn default_aggregator_settings(
             assets,
             asset_configs,
             decimals: 7,
-            base: usdc,
+            base: aggregator_usdc,
             enable_circuit_breaker: true,
             // 20% deviation from the previous price in 5 minutes
             circuit_breaker_threshold: 100000,
