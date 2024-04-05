@@ -24,6 +24,7 @@ pub enum AggregatorDataKey {
     AssetConfig(Asset),
     CircuitBreakerStatus(Asset),
     CircuitBreakerTimeout(Asset),
+    Blocked(Asset),
 }
 
 //********** Storage Utils **********//
@@ -195,6 +196,18 @@ pub fn get_velocity_threshold(e: &Env) -> u32 {
         LEDGER_THRESHOLD_SHARED,
         LEDGER_BUMP_SHARED,
     )
+}
+
+pub fn set_blocked_status(e: &Env, asset: &Asset, blocked: &bool) {
+    let key = AggregatorDataKey::Blocked(asset.clone());
+    e.storage()
+        .persistent()
+        .set::<AggregatorDataKey, bool>(&key, blocked);
+}
+
+pub fn get_blocked_status(e: &Env, asset: &Asset) -> bool {
+    let key = AggregatorDataKey::Blocked(asset.clone());
+    get_persistent_default(&e, &key, false, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED)
 }
 
 pub fn set_timeout(e: &Env, timeout: &u64) {
