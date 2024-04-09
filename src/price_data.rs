@@ -1,4 +1,6 @@
 use sep_40_oracle::PriceData;
+
+/// Normalize the price data to the correct number of decimals
 pub fn normalize_price(
     mut price_data: PriceData,
     decimals: &u32,
