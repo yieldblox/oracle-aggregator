@@ -4,10 +4,10 @@
 extern crate std;
 
 pub mod contract;
-pub mod errors;
-pub mod price_data;
-pub mod storage;
-pub mod types;
+mod errors;
+mod price_data;
+mod storage;
+mod types;
 
 #[cfg(any(test, feature = "testutils"))]
 pub mod testutils;
