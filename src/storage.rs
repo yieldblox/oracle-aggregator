@@ -10,13 +10,9 @@ const ASSETS_KEY: &str = "Assets";
 const BASE_KEY: &str = "Base";
 const DECIMALS_KEY: &str = "Decimals";
 
-const CIRCUIT_BREAKER_KEY: &str = "CircuitBreaker";
-const VELOCITY_THRESHOLD_KEY: &str = "VelocityThreshold";
-const CIRCUIT_BREAKER_TIMEOUT_KEY: &str = "CircuitBreakerTimeout";
-
 const ONE_DAY_LEDGERS: u32 = 17280; // assumes 5 seconds per ledger on average
-const LEDGER_THRESHOLD_SHARED: u32 = 14 * ONE_DAY_LEDGERS;
-const LEDGER_BUMP_SHARED: u32 = 15 * ONE_DAY_LEDGERS;
+const LEDGER_THRESHOLD_SHARED: u32 = 30 * ONE_DAY_LEDGERS;
+const LEDGER_BUMP_SHARED: u32 = 31 * ONE_DAY_LEDGERS;
 
 #[derive(Clone)]
 #[contracttype]
@@ -123,10 +119,6 @@ pub fn has_asset_config(e: &Env, asset: &Asset) -> bool {
     e.storage().persistent().has(&key)
 }
 
-pub fn remove_asset_config(e: &Env, asset: &Asset) {
-    let key = AggregatorDataKey::AssetConfig(asset.clone());
-    e.storage().persistent().remove(&key);
-}
 
 pub fn set_base(e: &Env, base: &Asset) {
     e.storage()
@@ -164,40 +156,6 @@ pub fn get_decimals(e: &Env) -> u32 {
         .unwrap()
 }
 
-pub fn set_circuit_breaker(e: &Env, enable: &bool) {
-    e.storage()
-        .persistent()
-        .set::<Symbol, bool>(&Symbol::new(&e, CIRCUIT_BREAKER_KEY), &enable);
-}
-
-pub fn has_circuit_breaker(e: &Env) -> bool {
-    e.storage().persistent().extend_ttl(
-        &Symbol::new(&e, CIRCUIT_BREAKER_KEY),
-        LEDGER_THRESHOLD_SHARED,
-        LEDGER_BUMP_SHARED,
-    );
-    e.storage()
-        .persistent()
-        .get::<Symbol, bool>(&Symbol::new(&e, CIRCUIT_BREAKER_KEY))
-        .unwrap_optimized()
-}
-
-pub fn set_velocity_threshold(e: &Env, threshold: &u32) {
-    e.storage()
-        .persistent()
-        .set::<Symbol, u32>(&Symbol::new(&e, VELOCITY_THRESHOLD_KEY), threshold);
-}
-
-pub fn get_velocity_threshold(e: &Env) -> u32 {
-    get_persistent_default(
-        e,
-        &Symbol::new(e, VELOCITY_THRESHOLD_KEY),
-        0,
-        LEDGER_THRESHOLD_SHARED,
-        LEDGER_BUMP_SHARED,
-    )
-}
-
 pub fn set_blocked_status(e: &Env, asset: &Asset, blocked: &bool) {
     let key = AggregatorDataKey::Blocked(asset.clone());
     e.storage()
@@ -208,60 +166,4 @@ pub fn set_blocked_status(e: &Env, asset: &Asset, blocked: &bool) {
 pub fn get_blocked_status(e: &Env, asset: &Asset) -> bool {
     let key = AggregatorDataKey::Blocked(asset.clone());
     get_persistent_default(&e, &key, false, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED)
-}
-
-pub fn set_timeout(e: &Env, timeout: &u64) {
-    e.storage()
-        .persistent()
-        .set::<Symbol, u64>(&Symbol::new(&e, CIRCUIT_BREAKER_TIMEOUT_KEY), timeout);
-}
-
-pub fn get_timeout(e: &Env) -> u64 {
-    e.storage().persistent().extend_ttl(
-        &Symbol::new(&e, CIRCUIT_BREAKER_TIMEOUT_KEY),
-        LEDGER_THRESHOLD_SHARED,
-        LEDGER_BUMP_SHARED,
-    );
-    e.storage()
-        .persistent()
-        .get::<Symbol, u64>(&Symbol::new(&e, CIRCUIT_BREAKER_TIMEOUT_KEY))
-        .unwrap()
-}
-
-/********** Temporary **********/
-
-pub fn set_circuit_breaker_status(e: &Env, asset: &Asset, status: &bool) {
-    let key = AggregatorDataKey::CircuitBreakerStatus(asset.clone());
-    let timeout = get_timeout(&e);
-    let ledgers = (timeout / 5 + 17280) as u32;
-    e.storage()
-        .temporary()
-        .set::<AggregatorDataKey, bool>(&key, status);
-    e.storage().temporary().extend_ttl(&key, ledgers, ledgers);
-}
-
-pub fn get_circuit_breaker_status(e: &Env, asset: &Asset) -> bool {
-    let key = AggregatorDataKey::CircuitBreakerStatus(asset.clone());
-    e.storage()
-        .temporary()
-        .get::<AggregatorDataKey, bool>(&key)
-        .unwrap_or(false)
-}
-
-pub fn set_circuit_breaker_timeout(e: &Env, asset: &Asset, asset_timeout: &u64) {
-    let timeout = get_timeout(&e);
-    let ledgers = (timeout / 5 + 17280) as u32;
-    let key = AggregatorDataKey::CircuitBreakerTimeout(asset.clone());
-    e.storage()
-        .temporary()
-        .set::<AggregatorDataKey, u64>(&key, asset_timeout);
-    e.storage().temporary().extend_ttl(&key, ledgers, ledgers)
-}
-
-pub fn get_circuit_breaker_timeout(e: &Env, asset: &Asset) -> u64 {
-    let key = AggregatorDataKey::CircuitBreakerTimeout(asset.clone());
-    e.storage()
-        .temporary()
-        .get::<AggregatorDataKey, u64>(&key)
-        .unwrap_or(0)
 }
