@@ -13,13 +13,13 @@ fn test_block_unblock() {
     e.set_default_info();
     e.mock_all_auths();
     let admin = Address::generate(&e);
-    let base = Asset::Other(Symbol::new(&e, "BASE"));
-    let asset_0 = Asset::Stellar(Address::generate(&e));
-    let asset_1 = Asset::Stellar(Address::generate(&e));
-    let asset_2 = Asset::Other(Symbol::new(&e, "wETH"));
+    let address_0 = Address::generate(&e);
+    let address_1 = Address::generate(&e);
+    let asset_0 = Asset::Stellar(address_0.clone());
+    let usdc = Address::generate(&e);
 
     let (aggregator, oracle_aggregator_client) = create_oracle_aggregator(&e);
-    setup_default_aggregator(&e, &aggregator, &admin, &base, &asset_0, &asset_1, &asset_2);
+    setup_default_aggregator(&e, &aggregator, &admin, &address_0, &address_1, &usdc);
 
     let price = oracle_aggregator_client.lastprice(&asset_0);
     assert!(price.is_some());
@@ -62,39 +62,73 @@ fn test_block_unblock() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #105)")]
-fn test_block_asset_not_found() {
+fn test_set_admin() {
     let e = Env::default();
     e.set_default_info();
     e.mock_all_auths();
     let admin = Address::generate(&e);
-    let base = Asset::Other(Symbol::new(&e, "BASE"));
-    let asset_0 = Asset::Stellar(Address::generate(&e));
-    let asset_1 = Asset::Stellar(Address::generate(&e));
-    let asset_2 = Asset::Other(Symbol::new(&e, "wETH"));
+    let address_0 = Address::generate(&e);
+    let address_1 = Address::generate(&e);
+    let asset_0 = Asset::Stellar(address_0.clone());
+    let usdc = Address::generate(&e);
+
+    let new_admin = Address::generate(&e);
 
     let (aggregator, oracle_aggregator_client) = create_oracle_aggregator(&e);
-    setup_default_aggregator(&e, &aggregator, &admin, &base, &asset_0, &asset_1, &asset_2);
-    let asset = Asset::Other(Symbol::new(&e, "NOT_FOUND"));
+    setup_default_aggregator(&e, &aggregator, &admin, &address_0, &address_1, &usdc);
 
-    oracle_aggregator_client.block(&asset);
-}
+    let price = oracle_aggregator_client.lastprice(&asset_0);
+    assert!(price.is_some());
 
-#[test]
-#[should_panic(expected = "Error(Contract, #105)")]
-fn test_unblock_asset_not_found() {
-    let e = Env::default();
-    e.set_default_info();
-    e.mock_all_auths();
-    let admin = Address::generate(&e);
-    let base = Asset::Other(Symbol::new(&e, "BASE"));
-    let asset_0 = Asset::Stellar(Address::generate(&e));
-    let asset_1 = Asset::Stellar(Address::generate(&e));
-    let asset_2 = Asset::Other(Symbol::new(&e, "wETH"));
+    oracle_aggregator_client.set_admin(&new_admin);
+    assert_eq!(
+        e.auths()[0],
+        (
+            admin.clone(),
+            AuthorizedInvocation {
+                function: AuthorizedFunction::Contract((
+                    oracle_aggregator_client.address.clone(),
+                    Symbol::new(&e, "set_admin"),
+                    vec![&e, new_admin.into_val(&e)]
+                )),
+                sub_invocations: std::vec![]
+            }
+        )
+    );
 
-    let (aggregator, oracle_aggregator_client) = create_oracle_aggregator(&e);
-    setup_default_aggregator(&e, &aggregator, &admin, &base, &asset_0, &asset_1, &asset_2);
+    oracle_aggregator_client.block(&asset_0);
+    assert_eq!(
+        e.auths()[0],
+        (
+            new_admin.clone(),
+            AuthorizedInvocation {
+                function: AuthorizedFunction::Contract((
+                    oracle_aggregator_client.address.clone(),
+                    Symbol::new(&e, "block"),
+                    vec![&e, asset_0.into_val(&e)]
+                )),
+                sub_invocations: std::vec![]
+            }
+        )
+    );
+    let result = oracle_aggregator_client.try_lastprice(&asset_0).err();
+    assert_eq!(result, Some(Ok(Error::from_contract_error(107))));
 
-    let asset = Asset::Other(Symbol::new(&e, "NOT_FOUND"));
-    oracle_aggregator_client.unblock(&asset);
+    oracle_aggregator_client.unblock(&asset_0);
+    assert_eq!(
+        e.auths()[0],
+        (
+            new_admin.clone(),
+            AuthorizedInvocation {
+                function: AuthorizedFunction::Contract((
+                    oracle_aggregator_client.address.clone(),
+                    Symbol::new(&e, "unblock"),
+                    vec![&e, asset_0.into_val(&e)]
+                )),
+                sub_invocations: std::vec![]
+            }
+        )
+    );
+    let price = oracle_aggregator_client.lastprice(&asset_0);
+    assert!(price.is_some());
 }

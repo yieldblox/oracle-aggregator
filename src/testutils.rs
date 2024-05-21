@@ -1,13 +1,13 @@
 #![cfg(test)]
 
-use crate::{contract::OracleAggregatorClient, types::OracleConfig};
+use crate::contract::OracleAggregatorClient;
 use sep_40_oracle::{
     testutils::{Asset as MockAsset, MockPriceOracleClient, MockPriceOracleWASM},
     Asset,
 };
 use soroban_sdk::{
     testutils::{Address as _, Ledger, LedgerInfo},
-    vec, Address, Env, Symbol, Vec,
+    Address, Env, Symbol, Vec,
 };
 pub mod oracle_aggregator {
     soroban_sdk::contractimport!(
@@ -69,25 +69,19 @@ pub fn create_oracle_aggregator<'a>(e: &Env) -> (Address, OracleAggregatorClient
 /// Setup an oracle aggregator with default test setttings based on the current env timestamp.
 ///
 /// ### Returns
-/// Two oracle aggegator clients:
+/// Two oracle clients:
 /// - (0 and 1 oracle, 2 oracle)
 pub fn setup_default_aggregator<'a>(
     e: &Env,
     aggregator: &Address,
     admin: &Address,
-    base: &Asset,
-    asset_0: &Asset,
-    asset_1: &Asset,
-    asset_2: &Asset,
+    asset_0: &Address,
+    asset_1: &Address,
+    usdc: &Address,
 ) -> (MockPriceOracleClient<'a>, MockPriceOracleClient<'a>) {
-    let address_0 = Address::generate(&e);
-    let address_1 = Address::generate(&e);
-    let oracle_asset_0 = Asset::Stellar(address_0.clone());
-    let oracle_asset_1 = Asset::Stellar(address_1.clone());
-    let symbol_2 = Symbol::new(&e, "wETH");
-    let oracle_asset_2 = Asset::Other(symbol_2.clone());
+    let usdc_sym = Symbol::new(&e, "USDC");
 
-    // setup oracle with XLM and USDC proce
+    // Setup default oracle
     let oracle_0_1_id = e.register_contract_wasm(None, MockPriceOracleWASM);
     let oracle_0_1 = MockPriceOracleClient::new(&e, &oracle_0_1_id);
     oracle_0_1.set_data(
@@ -96,23 +90,23 @@ pub fn setup_default_aggregator<'a>(
         &Vec::from_array(
             &e,
             [
-                MockAsset::Stellar(address_0.clone()),
-                MockAsset::Stellar(address_1.clone()),
+                MockAsset::Stellar(asset_0.clone()),
+                MockAsset::Stellar(asset_1.clone()),
             ],
         ),
-        &9,
+        &14,
         &300,
     );
     oracle_0_1.set_price(
-        &Vec::from_array(&e, [0_120000000, 1_010000000]),
+        &Vec::from_array(&e, [0_12000000000000, 126_12000000000000]),
         &(e.ledger().timestamp() - 300 * 2),
     );
     oracle_0_1.set_price(
-        &Vec::from_array(&e, [0_100000000, 0_990000000]),
+        &Vec::from_array(&e, [0_10000000000000, 128_12000000000000]),
         &(e.ledger().timestamp() - 300),
     );
     oracle_0_1.set_price(
-        &Vec::from_array(&e, [0_110000000, 1_000000000]),
+        &Vec::from_array(&e, [0_11000000000000, 124_12000000000000]),
         &e.ledger().timestamp(),
     );
 
@@ -121,50 +115,21 @@ pub fn setup_default_aggregator<'a>(
     oracle_2.set_data(
         &Address::generate(&e),
         &MockAsset::Other(Symbol::new(&e, "BASE")),
-        &Vec::from_array(&e, [MockAsset::Other(symbol_2)]),
-        &6,
-        &600,
+        &Vec::from_array(&e, [MockAsset::Other(usdc_sym)]),
+        &14,
+        &300,
     );
     oracle_2.set_price(
-        &Vec::from_array(&e, [999_000000]),
+        &Vec::from_array(&e, [0_99910231000000]),
         &(e.ledger().timestamp() - 600 * 2),
     );
     oracle_2.set_price(
-        &Vec::from_array(&e, [1010_000000]),
+        &Vec::from_array(&e, [1_00010231000000]),
         &(e.ledger().timestamp() - 600),
     );
 
-    let asset_configs = Vec::from_array(
-        &e,
-        [
-            OracleConfig {
-                oracle_id: oracle_0_1_id.clone(),
-                decimals: 9,
-                resolution: 300,
-                asset: oracle_asset_0,
-            },
-            OracleConfig {
-                oracle_id: oracle_0_1_id,
-                decimals: 9,
-                resolution: 300,
-                asset: oracle_asset_1,
-            },
-            OracleConfig {
-                oracle_id: oracle_2_id,
-                decimals: 6,
-                resolution: 600,
-                asset: oracle_asset_2,
-            },
-        ],
-    );
     let aggregator_client = OracleAggregatorClient::new(e, aggregator);
-    aggregator_client.initialize(
-        admin,
-        &base,
-        &vec![e, asset_0.clone(), asset_1.clone(), asset_2.clone()],
-        &asset_configs,
-        &7,
-    );
+    aggregator_client.initialize(admin, &usdc, &oracle_2_id, &oracle_0_1_id);
 
     return (oracle_0_1, oracle_2);
 }

@@ -1,12 +1,11 @@
-use crate::types::OracleConfig;
 use sep_40_oracle::Asset;
-use soroban_sdk::{
-    contracttype, unwrap::UnwrapOptimized, Address, Env, IntoVal, Symbol, TryFromVal, Val, Vec,
-};
+use soroban_sdk::{contracttype, Address, Env, IntoVal, Symbol, TryFromVal, Val};
 
 const ADMIN_KEY: &str = "Admin";
 const IS_INIT_KEY: &str = "IsInit";
-const ASSETS_KEY: &str = "Assets";
+const USDC_KEY: &str = "USDC";
+const USDC_ORACLE_KEY: &str = "USDCOrcl";
+const DEFAULT_ORACLE_KEY: &str = "DEFOrcl";
 const BASE_KEY: &str = "Base";
 const DECIMALS_KEY: &str = "Decimals";
 
@@ -79,82 +78,82 @@ pub fn set_admin(e: &Env, admin: &Address) {
         .set::<Symbol, Address>(&Symbol::new(e, ADMIN_KEY), &admin);
 }
 
-/********** Persistent **********/
-
-pub fn set_assets(e: &Env, assets: &Vec<Asset>) {
-    e.storage()
-        .persistent()
-        .set::<Symbol, Vec<Asset>>(&Symbol::new(e, ASSETS_KEY), assets);
-}
-
-pub fn get_assets(e: &Env) -> Vec<Asset> {
-    e.storage().persistent().extend_ttl(
-        &Symbol::new(e, ASSETS_KEY),
-        LEDGER_THRESHOLD_SHARED,
-        LEDGER_BUMP_SHARED,
-    );
-    e.storage()
-        .persistent()
-        .get::<Symbol, Vec<Asset>>(&Symbol::new(e, ASSETS_KEY))
-        .unwrap()
-}
-
-pub fn set_asset_config(e: &Env, asset: &Asset, config: &OracleConfig) {
-    let key = AggregatorDataKey::AssetConfig(asset.clone());
-    e.storage()
-        .persistent()
-        .set::<AggregatorDataKey, OracleConfig>(&key, config);
-}
-
-pub fn get_asset_config(e: &Env, asset: &Asset) -> OracleConfig {
-    let key = AggregatorDataKey::AssetConfig(asset.clone());
-    e.storage()
-        .persistent()
-        .extend_ttl(&key, LEDGER_THRESHOLD_SHARED, LEDGER_BUMP_SHARED);
-    e.storage().persistent().get(&key).unwrap_optimized()
-}
-
-pub fn has_asset_config(e: &Env, asset: &Asset) -> bool {
-    let key = AggregatorDataKey::AssetConfig(asset.clone());
-    e.storage().persistent().has(&key)
-}
-
-
-pub fn set_base(e: &Env, base: &Asset) {
-    e.storage()
-        .persistent()
-        .set::<Symbol, Asset>(&Symbol::new(e, BASE_KEY), base);
-}
-
+/// Get the base asset
 pub fn get_base(e: &Env) -> Asset {
-    e.storage().persistent().extend_ttl(
-        &Symbol::new(e, BASE_KEY),
-        LEDGER_THRESHOLD_SHARED,
-        LEDGER_BUMP_SHARED,
-    );
     e.storage()
-        .persistent()
+        .instance()
         .get::<Symbol, Asset>(&Symbol::new(e, BASE_KEY))
         .unwrap()
 }
 
-pub fn set_decimals(e: &Env, decimals: &u32) {
+/// Set the base asset
+pub fn set_base(e: &Env, base: &Asset) {
     e.storage()
-        .persistent()
-        .set::<Symbol, u32>(&Symbol::new(e, DECIMALS_KEY), decimals);
+        .instance()
+        .set::<Symbol, Asset>(&Symbol::new(e, BASE_KEY), base);
 }
 
+/// Get the decimals the oracle reports in
 pub fn get_decimals(e: &Env) -> u32 {
-    e.storage().persistent().extend_ttl(
-        &Symbol::new(e, DECIMALS_KEY),
-        LEDGER_THRESHOLD_SHARED,
-        LEDGER_BUMP_SHARED,
-    );
     e.storage()
-        .persistent()
+        .instance()
         .get::<Symbol, u32>(&Symbol::new(e, DECIMALS_KEY))
         .unwrap()
 }
+
+/// Set the decimals the oracle reports in
+pub fn set_decimals(e: &Env, decimals: &u32) {
+    e.storage()
+        .instance()
+        .set::<Symbol, u32>(&Symbol::new(e, DECIMALS_KEY), decimals);
+}
+
+/// Get the admin address
+pub fn get_usdc(e: &Env) -> Address {
+    e.storage()
+        .instance()
+        .get::<Symbol, Address>(&Symbol::new(e, USDC_KEY))
+        .unwrap()
+}
+
+/// Set the admin address
+pub fn set_usdc(e: &Env, usdc: &Address) {
+    e.storage()
+        .instance()
+        .set::<Symbol, Address>(&Symbol::new(e, USDC_KEY), &usdc);
+}
+
+/// Get the oracle address for USDC
+pub fn get_usdc_oracle(e: &Env) -> Address {
+    e.storage()
+        .instance()
+        .get::<Symbol, Address>(&Symbol::new(e, USDC_ORACLE_KEY))
+        .unwrap()
+}
+
+/// Set the oracle address for USDC
+pub fn set_usdc_oracle(e: &Env, oracle: &Address) {
+    e.storage()
+        .instance()
+        .set::<Symbol, Address>(&Symbol::new(e, USDC_ORACLE_KEY), &oracle);
+}
+
+/// Get the oracle address for all non-USDC assets
+pub fn get_default_oracle(e: &Env) -> Address {
+    e.storage()
+        .instance()
+        .get::<Symbol, Address>(&Symbol::new(e, DEFAULT_ORACLE_KEY))
+        .unwrap()
+}
+
+/// Set the oracle address for all non-USDC assets
+pub fn set_default_oracle(e: &Env, oracle: &Address) {
+    e.storage()
+        .instance()
+        .set::<Symbol, Address>(&Symbol::new(e, DEFAULT_ORACLE_KEY), &oracle);
+}
+
+/********** Persistent **********/
 
 pub fn set_blocked_status(e: &Env, asset: &Asset, blocked: &bool) {
     let key = AggregatorDataKey::Blocked(asset.clone());
