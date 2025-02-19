@@ -9,6 +9,7 @@ mod price_data;
 mod storage;
 mod types;
 
+pub use contract::*;
 #[cfg(any(test, feature = "testutils"))]
 pub mod testutils;
 
