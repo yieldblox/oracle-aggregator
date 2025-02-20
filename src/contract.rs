@@ -85,7 +85,7 @@ impl OracleAggregator {
     /// * `AlreadyInitialized` - The contract has already been initialized
     /// * `InvalidAssets` - The asset array is invalid
     /// * `InvalidOracleConfig` - The oracle config array is invalid
-    pub fn initialize(
+    pub fn __constructor(
         e: Env,
         admin: Address,
         base: Asset,

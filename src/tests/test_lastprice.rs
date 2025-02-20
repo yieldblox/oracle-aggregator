@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use crate::testutils::{create_oracle_aggregator, setup_default_aggregator, EnvTestUtils};
+use crate::testutils::{setup_default_aggregator, EnvTestUtils};
 use sep_40_oracle::Asset;
 use soroban_sdk::{testutils::Address as _, Address, Env, Error, Symbol, Vec};
 
@@ -15,9 +15,8 @@ fn test_lastprice() {
     let asset_1 = Asset::Stellar(Address::generate(&e));
     let asset_2 = Asset::Other(Symbol::new(&e, "wETH"));
 
-    let (aggregator, oracle_aggregator_client) = create_oracle_aggregator(&e);
-    let (oracle_1, oracle_2) =
-        setup_default_aggregator(&e, &aggregator, &admin, &base, &asset_0, &asset_1, &asset_2);
+    let (oracle_aggregator_client, oracle_1, oracle_2) =
+        setup_default_aggregator(&e, &admin, &base, &asset_0, &asset_1, &asset_2);
 
     oracle_1.set_price(
         &Vec::from_array(&e, [0_110000000, 1_000000000]),
@@ -75,8 +74,8 @@ fn test_lastprice_asset_not_found() {
     let asset_1 = Asset::Stellar(Address::generate(&e));
     let asset_2 = Asset::Other(Symbol::new(&e, "wETH"));
 
-    let (aggregator, oracle_aggregator_client) = create_oracle_aggregator(&e);
-    setup_default_aggregator(&e, &aggregator, &admin, &base, &asset_0, &asset_1, &asset_2);
+    let (oracle_aggregator_client, _, _) =
+        setup_default_aggregator(&e, &admin, &base, &asset_0, &asset_1, &asset_2);
 
     oracle_aggregator_client.lastprice(&Asset::Other(Symbol::new(&e, "NOT_FOUND")));
 }
@@ -92,9 +91,8 @@ fn test_lastprice_asset_blocked() {
     let asset_1 = Asset::Stellar(Address::generate(&e));
     let asset_2 = Asset::Other(Symbol::new(&e, "wETH"));
 
-    let (aggregator, oracle_aggregator_client) = create_oracle_aggregator(&e);
-    let (oracle_1, oracle_2) =
-        setup_default_aggregator(&e, &aggregator, &admin, &base, &asset_0, &asset_1, &asset_2);
+    let (oracle_aggregator_client, oracle_1, oracle_2) =
+        setup_default_aggregator(&e, &admin, &base, &asset_0, &asset_1, &asset_2);
     oracle_1.set_price(
         &Vec::from_array(&e, [0_110000000, 1_000000000]),
         &e.ledger().timestamp(),
@@ -130,9 +128,8 @@ fn test_lastprice_retries_with_timestamp() {
     let asset_1 = Asset::Stellar(Address::generate(&e));
     let asset_2 = Asset::Other(Symbol::new(&e, "wETH"));
 
-    let (aggregator, oracle_aggregator_client) = create_oracle_aggregator(&e);
-    let (oracle_1, _) =
-        setup_default_aggregator(&e, &aggregator, &admin, &base, &asset_0, &asset_1, &asset_2);
+    let (oracle_aggregator_client, oracle_1, _) =
+        setup_default_aggregator(&e, &admin, &base, &asset_0, &asset_1, &asset_2);
 
     // Oldest acceptable timestamp
     let expected_timestamp = e.ledger().timestamp() - 5 * 60;
@@ -177,9 +174,8 @@ fn test_lastprice_retry_exceeds_max_timestamp() {
     let asset_1 = Asset::Stellar(Address::generate(&e));
     let asset_2 = Asset::Other(Symbol::new(&e, "wETH"));
 
-    let (aggregator, oracle_aggregator_client) = create_oracle_aggregator(&e);
-    let (oracle_1, _) =
-        setup_default_aggregator(&e, &aggregator, &admin, &base, &asset_0, &asset_1, &asset_2);
+    let (oracle_aggregator_client, oracle_1, _) =
+        setup_default_aggregator(&e, &admin, &base, &asset_0, &asset_1, &asset_2);
 
     oracle_1.set_price(
         &Vec::from_array(&e, [0_120000000, 1_010000000]),

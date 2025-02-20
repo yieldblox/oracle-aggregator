@@ -57,9 +57,26 @@ impl EnvTestUtils for Env {
 }
 
 /// Deploy an oracle aggreator contract
-pub fn create_oracle_aggregator<'a>(e: &Env) -> (Address, OracleAggregatorClient<'a>) {
+pub fn create_oracle_aggregator<'a>(
+    e: &Env,
+    admin: &Address,
+    base: &Asset,
+    assets: &Vec<Asset>,
+    asset_configs: &Vec<OracleConfig>,
+    decimals: &u32,
+) -> (Address, OracleAggregatorClient<'a>) {
     let oracle_aggregator_address = Address::generate(&e);
-    e.register_at(&oracle_aggregator_address, oracle_aggregator::WASM, ());
+    e.register_at(
+        &oracle_aggregator_address,
+        oracle_aggregator::WASM,
+        (
+            admin,
+            base.clone(),
+            assets.clone(),
+            asset_configs.clone(),
+            decimals,
+        ),
+    );
     let oracle_aggregator_client: OracleAggregatorClient<'a> =
         OracleAggregatorClient::new(&e, &oracle_aggregator_address);
     return (oracle_aggregator_address, oracle_aggregator_client);
@@ -72,13 +89,16 @@ pub fn create_oracle_aggregator<'a>(e: &Env) -> (Address, OracleAggregatorClient
 /// - (0 and 1 oracle, 2 oracle)
 pub fn setup_default_aggregator<'a>(
     e: &Env,
-    aggregator: &Address,
     admin: &Address,
     base: &Asset,
     asset_0: &Asset,
     asset_1: &Asset,
     asset_2: &Asset,
-) -> (MockPriceOracleClient<'a>, MockPriceOracleClient<'a>) {
+) -> (
+    OracleAggregatorClient<'a>,
+    MockPriceOracleClient<'a>,
+    MockPriceOracleClient<'a>,
+) {
     let address_0 = Address::generate(&e);
     let address_1 = Address::generate(&e);
     let oracle_asset_0 = Asset::Stellar(address_0.clone());
@@ -138,16 +158,16 @@ pub fn setup_default_aggregator<'a>(
             },
         ],
     );
-    let aggregator_client = OracleAggregatorClient::new(e, aggregator);
-    aggregator_client.initialize(
+    let (_, aggregator_client) = create_oracle_aggregator(
+        e,
         admin,
-        &base,
-        &vec![e, asset_0.clone(), asset_1.clone(), asset_2.clone()],
+        base,
+        &&vec![e, asset_0.clone(), asset_1.clone(), asset_2.clone()],
         &asset_configs,
         &7,
     );
 
-    return (oracle_0_1, oracle_2);
+    return (aggregator_client, oracle_0_1, oracle_2);
 }
 
 pub fn assert_assets_equal(a: Asset, b: Asset) -> bool {
