@@ -1,10 +1,10 @@
 #![cfg(test)]
 
-use crate::testutils::{create_oracle_aggregator, setup_default_aggregator, EnvTestUtils};
+use crate::testutils::{setup_default_aggregator, EnvTestUtils};
 use sep_40_oracle::Asset;
 use soroban_sdk::{
     testutils::{Address as _, AuthorizedFunction, AuthorizedInvocation},
-    vec, Address, Env, Error, IntoVal, Symbol,
+    vec, Address, Env, Error, IntoVal, Symbol, Vec,
 };
 
 #[test]
@@ -18,8 +18,17 @@ fn test_block_unblock() {
     let asset_1 = Asset::Stellar(Address::generate(&e));
     let asset_2 = Asset::Other(Symbol::new(&e, "wETH"));
 
-    let (aggregator, oracle_aggregator_client) = create_oracle_aggregator(&e);
-    setup_default_aggregator(&e, &aggregator, &admin, &base, &asset_0, &asset_1, &asset_2);
+    let (oracle_aggregator_client, oracle_1, oracle_2) =
+        setup_default_aggregator(&e, &admin, &base, &asset_0, &asset_1, &asset_2);
+
+    oracle_1.set_price(
+        &Vec::from_array(&e, [0_110000000, 1_000000000]),
+        &e.ledger().timestamp(),
+    );
+    oracle_2.set_price(
+        &Vec::from_array(&e, [1010_000000]),
+        &(e.ledger().timestamp() - 600),
+    );
 
     let price = oracle_aggregator_client.lastprice(&asset_0);
     assert!(price.is_some());
@@ -72,9 +81,9 @@ fn test_block_asset_not_found() {
     let asset_0 = Asset::Stellar(Address::generate(&e));
     let asset_1 = Asset::Stellar(Address::generate(&e));
     let asset_2 = Asset::Other(Symbol::new(&e, "wETH"));
+    let (oracle_aggregator_client, _, _) =
+        setup_default_aggregator(&e, &admin, &base, &asset_0, &asset_1, &asset_2);
 
-    let (aggregator, oracle_aggregator_client) = create_oracle_aggregator(&e);
-    setup_default_aggregator(&e, &aggregator, &admin, &base, &asset_0, &asset_1, &asset_2);
     let asset = Asset::Other(Symbol::new(&e, "NOT_FOUND"));
 
     oracle_aggregator_client.block(&asset);
@@ -92,8 +101,8 @@ fn test_unblock_asset_not_found() {
     let asset_1 = Asset::Stellar(Address::generate(&e));
     let asset_2 = Asset::Other(Symbol::new(&e, "wETH"));
 
-    let (aggregator, oracle_aggregator_client) = create_oracle_aggregator(&e);
-    setup_default_aggregator(&e, &aggregator, &admin, &base, &asset_0, &asset_1, &asset_2);
+    let (oracle_aggregator_client, _, _) =
+        setup_default_aggregator(&e, &admin, &base, &asset_0, &asset_1, &asset_2);
 
     let asset = Asset::Other(Symbol::new(&e, "NOT_FOUND"));
     oracle_aggregator_client.unblock(&asset);

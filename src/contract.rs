@@ -45,12 +45,27 @@ impl PriceFeedTrait for OracleAggregator {
 
         let config = storage::get_asset_config(&e, &asset);
         let oracle = PriceFeedClient::new(&e, &config.oracle_id);
-        let price: Option<PriceData> = oracle.lastprice(&config.asset);
+        let mut price: Option<PriceData> = oracle.lastprice(&config.asset);
+        let decimals = storage::get_decimals(&e);
         if let Some(price) = price {
-            let decimals = storage::get_decimals(&e);
             let normalized_price = normalize_price(price.clone(), &decimals, &config.decimals);
             return Some(normalized_price);
         } else {
+            let resolution = config.resolution as u64;
+            let mut normalized_timestamp = e.ledger().timestamp() / resolution * resolution;
+            let min_timestamp = normalized_timestamp - 5 * 60;
+            // Start a resolution period before the current timestamp
+            normalized_timestamp -= resolution;
+
+            while price.is_none() && normalized_timestamp >= min_timestamp {
+                price = oracle.price(&config.asset, &normalized_timestamp);
+                if let Some(price) = price {
+                    let normalized_price =
+                        normalize_price(price.clone(), &decimals, &config.decimals);
+                    return Some(normalized_price);
+                }
+                normalized_timestamp -= resolution;
+            }
             return None;
         }
     }
@@ -70,7 +85,7 @@ impl OracleAggregator {
     /// * `AlreadyInitialized` - The contract has already been initialized
     /// * `InvalidAssets` - The asset array is invalid
     /// * `InvalidOracleConfig` - The oracle config array is invalid
-    pub fn initialize(
+    pub fn __constructor(
         e: Env,
         admin: Address,
         base: Asset,
