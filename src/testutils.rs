@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use crate::{contract::OracleAggregatorClient, types::OracleConfig};
+use crate::{contract::OracleAggregatorClient, types::AssetConfig};
 use sep_40_oracle::{
     testutils::{Asset as MockAsset, MockPriceOracleClient, MockPriceOracleWASM},
     Asset,
@@ -62,7 +62,7 @@ pub fn create_oracle_aggregator<'a>(
     admin: &Address,
     base: &Asset,
     assets: &Vec<Asset>,
-    asset_configs: &Vec<OracleConfig>,
+    asset_configs: &Vec<AssetConfig>,
     decimals: &u32,
 ) -> (Address, OracleAggregatorClient<'a>) {
     let oracle_aggregator_address = Address::generate(&e);
@@ -138,19 +138,19 @@ pub fn setup_default_aggregator<'a>(
     let asset_configs = Vec::from_array(
         &e,
         [
-            OracleConfig {
+            AssetConfig {
                 oracle_id: oracle_0_1_id.clone(),
                 decimals: 9,
                 resolution: 300,
                 asset: oracle_asset_0,
             },
-            OracleConfig {
+            AssetConfig {
                 oracle_id: oracle_0_1_id,
                 decimals: 9,
                 resolution: 300,
                 asset: oracle_asset_1,
             },
-            OracleConfig {
+            AssetConfig {
                 oracle_id: oracle_2_id,
                 decimals: 6,
                 resolution: 600,

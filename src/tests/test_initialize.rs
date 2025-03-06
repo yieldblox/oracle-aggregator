@@ -3,7 +3,7 @@ use crate::{
     testutils::{
         assert_assets_equal, create_oracle_aggregator, setup_default_aggregator, EnvTestUtils,
     },
-    types::OracleConfig,
+    types::AssetConfig,
 };
 use sep_40_oracle::Asset;
 use soroban_sdk::{testutils::Address as _, vec, Address, Env, Symbol};
@@ -75,7 +75,7 @@ fn test_initalize_missing_configs() {
         &vec![&e, asset_0, asset_1],
         &vec![
             &e,
-            OracleConfig {
+            AssetConfig {
                 oracle_id: Address::generate(&e),
                 decimals: 7,
                 resolution: 234,
