@@ -110,15 +110,22 @@ pub fn get_assets(e: &Env) -> Vec<Asset> {
 pub fn set_asset_config(e: &Env, asset: &Asset, config: &AssetConfig) {
     let key = AggregatorDataKey::Asset(asset.clone());
     e.storage()
-        .instance()
+        .persistent()
         .set::<AggregatorDataKey, AssetConfig>(&key, config);
+    e.storage()
+        .persistent()
+        .extend_ttl(&key, LEDGER_THRESHOLD, LEDGER_BUMP);
 }
 
 /// Get an asset configuration
 pub fn get_asset_config(e: &Env, asset: &Asset) -> Option<AssetConfig> {
     let key = AggregatorDataKey::Asset(asset.clone());
-    e.storage()
-        .persistent()
-        .extend_ttl(&key, LEDGER_THRESHOLD, LEDGER_BUMP);
-    e.storage().persistent().get(&key)
+    if let Some(result) = e.storage().persistent().get(&key) {
+        e.storage()
+            .persistent()
+            .extend_ttl(&key, LEDGER_THRESHOLD, LEDGER_BUMP);
+        result
+    } else {
+        None
+    }
 }

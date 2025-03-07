@@ -50,11 +50,17 @@ impl OracleAggregator {
     /// * `base` - The address of the base asset the oracle will report in
     /// * `decimals` - The decimals the oracle will report in
     /// * `max_age` - The maximum time the oracle will look back for a price (in seconds)
+    ///
+    /// ### Errors
+    /// * `InvalidMaxAge` - The max age is not between 360 (6m) and 3600 (60m)
     pub fn __constructor(e: Env, admin: Address, base: Asset, decimals: u32, max_age: u64) {
         storage::extend_instance(&e);
         storage::set_admin(&e, &admin);
         storage::set_base(&e, &base);
         storage::set_decimals(&e, &decimals);
+        if max_age < 360 || max_age > 3600 {
+            panic_with_error!(&e, OracleAggregatorErrors::InvalidMaxAge);
+        }
         storage::set_max_age(&e, &max_age);
         storage::set_assets(&e, &vec![&e]);
     }
@@ -62,6 +68,11 @@ impl OracleAggregator {
     /// Fetch the configuration of an asset
     pub fn config(e: Env, asset: Asset) -> Option<AssetConfig> {
         storage::get_asset_config(&e, &asset)
+    }
+
+    /// Fetch the max age of a price
+    pub fn max_age(e: Env) -> u64 {
+        storage::get_max_age(&e)
     }
 
     /// (Admin Only) Add an asset to the oracle aggregator

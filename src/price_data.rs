@@ -1,7 +1,7 @@
 use sep_40_oracle::{PriceData, PriceFeedClient};
-use soroban_sdk::{panic_with_error, Env};
+use soroban_sdk::Env;
 
-use crate::{errors::OracleAggregatorErrors, storage, types::AssetConfig};
+use crate::{storage, types::AssetConfig};
 
 /// Fetch a price based on the asset config
 pub fn get_price(e: &Env, config: &AssetConfig) -> Option<PriceData> {
@@ -23,12 +23,9 @@ pub fn get_price(e: &Env, config: &AssetConfig) -> Option<PriceData> {
         let normalized_price = normalize_price(price, &decimals, &config.decimals);
         if normalized_price.timestamp >= oldest_timestamp {
             return Some(normalized_price);
-        } else {
-            panic_with_error!(e, OracleAggregatorErrors::InvalidPriceTooOld);
         }
-    } else {
-        return None;
     }
+    return None;
 }
 
 /// Normalize the price data to the correct number of decimals
