@@ -1,13 +1,13 @@
 #![cfg(test)]
 
-use crate::contract::OracleAggregatorClient;
-use sep_40_oracle::{
-    testutils::{Asset as MockAsset, MockPriceOracleClient, MockPriceOracleWASM},
-    Asset,
+use crate::{
+    contract::OracleAggregatorClient,
+    types::{Asset, AssetConfig, OracleConfig},
 };
+use sep_40_oracle::testutils::{Asset as MockAsset, MockPriceOracleClient, MockPriceOracleWASM};
 use soroban_sdk::{
     testutils::{Address as _, Ledger, LedgerInfo},
-    vec, Address, Env, Symbol, Vec,
+    Address, Env, Symbol, Vec,
 };
 pub mod oracle_aggregator {
     soroban_sdk::contractimport!(
@@ -20,6 +20,9 @@ const ONE_DAY_LEDGERS: u32 = 24 * 60 * 60 / 5;
 pub trait EnvTestUtils {
     /// Jump the env by the given amount of ledgers. Assumes 5 seconds per ledger.
     fn jump(&self, ledgers: u32);
+
+    /// Jump the env by the given amount of time. Increments the sequence number by 1.
+    fn jump_time(&self, time: u64);
 
     /// Set the ledger to the default LedgerInfo
     ///
@@ -34,6 +37,19 @@ impl EnvTestUtils for Env {
             timestamp: self.ledger().timestamp().saturating_add(ledgers as u64 * 5),
             protocol_version: 22,
             sequence_number: self.ledger().sequence().saturating_add(ledgers),
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 50 * ONE_DAY_LEDGERS,
+            min_persistent_entry_ttl: 50 * ONE_DAY_LEDGERS,
+            max_entry_ttl: 365 * ONE_DAY_LEDGERS,
+        });
+    }
+
+    fn jump_time(&self, time: u64) {
+        self.ledger().set(LedgerInfo {
+            timestamp: self.ledger().timestamp().saturating_add(time),
+            protocol_version: 22,
+            sequence_number: self.ledger().sequence() + 1,
             network_id: Default::default(),
             base_reserve: 10,
             min_temp_entry_ttl: 50 * ONE_DAY_LEDGERS,
@@ -92,13 +108,6 @@ pub fn setup_default_aggregator<'a>(
     MockPriceOracleClient<'a>,
     MockPriceOracleClient<'a>,
 ) {
-    let address_0 = Address::generate(&e);
-    let address_1 = Address::generate(&e);
-    let oracle_asset_0 = Asset::Stellar(address_0.clone());
-    let oracle_asset_1 = Asset::Stellar(address_1.clone());
-    let symbol_2 = Symbol::new(&e, "wETH");
-    let oracle_asset_2 = Asset::Other(symbol_2.clone());
-
     // setup oracle with XLM and USDC proce
     let oracle_0_1_id = Address::generate(&e);
     e.register_at(&oracle_0_1_id, MockPriceOracleWASM, ());
@@ -109,8 +118,8 @@ pub fn setup_default_aggregator<'a>(
         &Vec::from_array(
             &e,
             [
-                MockAsset::Stellar(address_0.clone()),
-                MockAsset::Stellar(address_1.clone()),
+                MockAsset::from(asset_0.clone()),
+                MockAsset::from(asset_1.clone()),
             ],
         ),
         &9,
@@ -123,25 +132,43 @@ pub fn setup_default_aggregator<'a>(
     oracle_2.set_data(
         &Address::generate(&e),
         &MockAsset::Other(Symbol::new(&e, "BASE")),
-        &Vec::from_array(&e, [MockAsset::Other(symbol_2)]),
+        &Vec::from_array(&e, [MockAsset::from(asset_2.clone())]),
         &6,
         &600,
     );
 
-    oracle_0_1.set_price(&vec![&e, 0i128, 0i128], &0);
-    oracle_2.set_price(&vec![&e, 0i128], &0);
-
     let (_, aggregator_client) = create_oracle_aggregator(e, admin, base, &7, &900);
-    aggregator_client.add_asset(&asset_0, &oracle_0_1_id, &oracle_asset_0);
-    aggregator_client.add_asset(&asset_1, &oracle_0_1_id, &oracle_asset_1);
-    aggregator_client.add_asset(&asset_2, &oracle_2_id, &oracle_asset_2);
+    aggregator_client.add_oracle(&oracle_0_1_id);
+    aggregator_client.add_oracle(&oracle_2_id);
     return (aggregator_client, oracle_0_1, oracle_2);
 }
 
-pub fn assert_assets_equal(a: Asset, b: Asset) -> bool {
+pub fn assert_assets_equal(a: Asset, b: Asset) {
     match (a, b) {
-        (Asset::Stellar(a), Asset::Stellar(b)) => a == b,
-        (Asset::Other(a), Asset::Other(b)) => a == b,
-        _ => false,
+        (Asset::Stellar(a), Asset::Stellar(b)) => assert_eq!(a, b),
+        (Asset::Other(a), Asset::Other(b)) => assert_eq!(a, b),
+        _ => assert!(false, "Asset type mismatch"),
+    };
+}
+
+pub fn assert_asset_config_equal(a: AssetConfig, b: AssetConfig) {
+    assert_assets_equal(a.asset, b.asset);
+    assert_eq!(a.oracle_index, b.oracle_index);
+    assert_eq!(a.max_dev, b.max_dev);
+}
+
+pub fn assert_oracle_config_equal(a: OracleConfig, b: OracleConfig) {
+    assert_eq!(a.address, b.address);
+    assert_eq!(a.index, b.index);
+    assert_eq!(a.resolution, b.resolution);
+    assert_eq!(a.decimals, b.decimals);
+}
+
+impl From<Asset> for MockAsset {
+    fn from(asset: Asset) -> Self {
+        match asset {
+            Asset::Stellar(a) => MockAsset::Stellar(a),
+            Asset::Other(a) => MockAsset::Other(a),
+        }
     }
 }

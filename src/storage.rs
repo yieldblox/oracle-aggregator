@@ -1,22 +1,17 @@
-use crate::types::AssetConfig;
-use sep_40_oracle::Asset;
-use soroban_sdk::{contracttype, unwrap::UnwrapOptimized, Address, Env, Symbol, Vec};
+use crate::types::{Asset, AssetConfig, OracleConfig};
+use soroban_sdk::{map, unwrap::UnwrapOptimized, vec, Address, Env, Map, Symbol, Vec};
 
 const ADMIN_KEY: &str = "Admin";
-const ASSETS_KEY: &str = "Assets";
 const BASE_KEY: &str = "Base";
+const BASE_ASSETS_KEY: &str = "BaseAssets";
+const ASSETS_KEY: &str = "Assets";
+const ORACLES_KEY: &str = "Oracles";
 const DECIMALS_KEY: &str = "Decimals";
 const MAX_AGE_KEY: &str = "MaxAge";
 
 const ONE_DAY_LEDGERS: u32 = 17280; // assumes 5 seconds per ledger on average
 const LEDGER_THRESHOLD: u32 = 30 * ONE_DAY_LEDGERS;
 const LEDGER_BUMP: u32 = 31 * ONE_DAY_LEDGERS;
-
-#[derive(Clone)]
-#[contracttype]
-pub enum AggregatorDataKey {
-    Asset(Asset),
-}
 
 //********** Storage Utils **********//
 
@@ -89,43 +84,47 @@ pub fn get_decimals(e: &Env) -> u32 {
         .unwrap()
 }
 
-/// Set a list of assets
-pub fn set_assets(e: &Env, assets: &Vec<Asset>) {
+/// Set a list of base assets
+pub fn set_base_assets(e: &Env, assets: &Vec<Asset>) {
     e.storage()
         .instance()
-        .set::<Symbol, Vec<Asset>>(&Symbol::new(e, ASSETS_KEY), assets);
+        .set::<Symbol, Vec<Asset>>(&Symbol::new(e, BASE_ASSETS_KEY), assets);
 }
 
-/// Get a list of assets
-pub fn get_assets(e: &Env) -> Vec<Asset> {
+/// Get a list of base assets
+pub fn get_base_assets(e: &Env) -> Vec<Asset> {
     e.storage()
         .instance()
-        .get::<Symbol, Vec<Asset>>(&Symbol::new(e, ASSETS_KEY))
-        .unwrap()
+        .get::<Symbol, Vec<Asset>>(&Symbol::new(e, BASE_ASSETS_KEY))
+        .unwrap_or(vec![&e])
 }
 
-/********** Persistent **********/
+/// Set a list of oracles
+pub fn set_oracles(e: &Env, assets: &Vec<OracleConfig>) {
+    e.storage()
+        .instance()
+        .set::<Symbol, Vec<OracleConfig>>(&Symbol::new(e, ORACLES_KEY), assets);
+}
+
+/// Get a list of oracles
+pub fn get_oracles(e: &Env) -> Vec<OracleConfig> {
+    e.storage()
+        .instance()
+        .get::<Symbol, Vec<OracleConfig>>(&Symbol::new(e, ORACLES_KEY))
+        .unwrap_or(vec![&e])
+}
 
 /// Set an asset configuration
-pub fn set_asset_config(e: &Env, asset: &Asset, config: &AssetConfig) {
-    let key = AggregatorDataKey::Asset(asset.clone());
+pub fn set_asset_configs(e: &Env, config: &Map<Asset, AssetConfig>) {
     e.storage()
-        .persistent()
-        .set::<AggregatorDataKey, AssetConfig>(&key, config);
-    e.storage()
-        .persistent()
-        .extend_ttl(&key, LEDGER_THRESHOLD, LEDGER_BUMP);
+        .instance()
+        .set::<Symbol, Map<Asset, AssetConfig>>(&Symbol::new(e, ASSETS_KEY), config);
 }
 
 /// Get an asset configuration
-pub fn get_asset_config(e: &Env, asset: &Asset) -> Option<AssetConfig> {
-    let key = AggregatorDataKey::Asset(asset.clone());
-    if let Some(result) = e.storage().persistent().get(&key) {
-        e.storage()
-            .persistent()
-            .extend_ttl(&key, LEDGER_THRESHOLD, LEDGER_BUMP);
-        result
-    } else {
-        None
-    }
+pub fn get_asset_configs(e: &Env) -> Map<Asset, AssetConfig> {
+    e.storage()
+        .instance()
+        .get::<Symbol, Map<Asset, AssetConfig>>(&Symbol::new(e, ASSETS_KEY))
+        .unwrap_or(map![&e])
 }
