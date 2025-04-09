@@ -30,7 +30,7 @@ fn test_reflector() {
 
     let usdglo_address = Address::from_str(&e, snapshot::USDGLO);
     let usdglo_oracle_asset = Asset::Stellar(usdglo_address.clone());
-    let usdglo_asset = usdc_oracle_asset.clone();
+    let usdglo_asset = usdglo_oracle_asset.clone();
 
     let bombadil = Address::generate(&e);
     let reflector = Address::from_str(&e, snapshot::REFLECTOR);

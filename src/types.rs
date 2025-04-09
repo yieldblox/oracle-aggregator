@@ -10,7 +10,7 @@ pub struct PriceData {
 
 /// Asset type
 #[contracttype]
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum Asset {
     Stellar(Address),
     Other(Symbol),

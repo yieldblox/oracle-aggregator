@@ -532,7 +532,7 @@ fn test_base_assets() {
     // deploy oracle aggregator
     let (oracle_aggregator_id, oracle_aggregator_client) =
         create_oracle_aggregator(&e, &admin, &base, &decimals, &max_age);
-    assert_assets_equal(oracle_aggregator_client.base(), base);
+    assert_assets_equal(oracle_aggregator_client.base(), base.clone());
     assert_eq!(oracle_aggregator_client.decimals(), 7);
     assert_eq!(oracle_aggregator_client.max_age(), 900);
 
@@ -590,6 +590,16 @@ fn test_base_assets() {
     // verify duplcate base asset cannot be added
     let result_dupe = oracle_aggregator_client.try_add_base_asset(&Asset::Stellar(asset_1.clone()));
     assert_eq!(result_dupe.err(), Some(Ok(Error::from_contract_error(103))));
+
+    // verify real base asset cannot be added
+    let result_base = oracle_aggregator_client.try_add_base_asset(&base);
+    assert_eq!(result_base.err(), Some(Ok(Error::from_contract_error(103))));
+
+    let result_base_2 = oracle_aggregator_client.try_add_asset(&base, &oracle_0_1_id, &base, &0);
+    assert_eq!(
+        result_base_2.err(),
+        Some(Ok(Error::from_contract_error(103)))
+    );
 
     // verify max base assets is checked
     e.as_contract(&oracle_aggregator_id, || {
@@ -702,6 +712,7 @@ fn test_base_assets() {
     assert_assets_equal(assets.get_unchecked(2), Asset::Stellar(asset_2.clone()));
 
     e.jump(1);
+
     // verify lastprice uses oracle
     let oracle_price = oracle_aggregator_client
         .lastprice(&Asset::Stellar(asset_2.clone()))

@@ -82,8 +82,9 @@ impl OracleAggregator {
     pub fn lastprice(e: Env, asset: Asset) -> Option<PriceData> {
         storage::extend_instance(&e);
 
+        let base_asset = storage::get_base(&e);
         let base_assets = storage::get_base_assets(&e);
-        if base_assets.contains(&asset) {
+        if base_assets.contains(&asset) || asset == base_asset {
             let decimals = storage::get_decimals(&e);
             return Some(PriceData {
                 price: 10i128.pow(decimals),
@@ -180,6 +181,11 @@ impl OracleAggregator {
             panic_with_error!(&e, OracleAggregatorErrors::MaxAssetsExceeded);
         }
 
+        let base_asset = storage::get_base(&e);
+        if asset == base_asset {
+            panic_with_error!(&e, OracleAggregatorErrors::AssetExists);
+        }
+
         let oracles = storage::get_oracles(&e);
         let mut oracle_config: Option<OracleConfig> = None;
         for oracle in oracles.iter() {
@@ -222,6 +228,11 @@ impl OracleAggregator {
     pub fn add_base_asset(e: Env, base: Asset) {
         storage::get_admin(&e).require_auth();
         storage::extend_instance(&e);
+
+        let base_asset = storage::get_base(&e);
+        if base == base_asset {
+            panic_with_error!(&e, OracleAggregatorErrors::AssetExists);
+        }
 
         let mut base_assets = storage::get_base_assets(&e);
         if base_assets.contains(&base) {

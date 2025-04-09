@@ -356,6 +356,10 @@ fn test_lastprice_base() {
     let price_1 = oracle_aggregator_client.lastprice(&asset_1).unwrap();
     assert_eq!(price_1.price, 1_0000000);
     assert_eq!(price_1.timestamp, e.ledger().timestamp());
+
+    let price_base = oracle_aggregator_client.lastprice(&base).unwrap();
+    assert_eq!(price_base.price, 1_0000000);
+    assert_eq!(price_base.timestamp, e.ledger().timestamp());
 }
 
 #[test]
@@ -400,6 +404,10 @@ fn test_lastprice_base_no_price_history() {
     let price_1 = oracle_aggregator_client.lastprice(&asset_1).unwrap();
     assert_eq!(price_1.price, 1_0000000);
     assert_eq!(price_1.timestamp, e.ledger().timestamp());
+
+    let price_base = oracle_aggregator_client.lastprice(&base).unwrap();
+    assert_eq!(price_base.price, 1_0000000);
+    assert_eq!(price_base.timestamp, e.ledger().timestamp());
 }
 
 #[test]
