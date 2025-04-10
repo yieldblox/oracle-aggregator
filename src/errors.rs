@@ -8,4 +8,7 @@ pub enum OracleAggregatorErrors {
     AssetExists = 103,
     AssetNotFound = 104,
     InvalidMaxAge = 105,
+    OracleExists = 106,
+    OracleNotFound = 107,
+    MaxOraclesExceeded = 108,
 }
