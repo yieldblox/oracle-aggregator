@@ -10,6 +10,7 @@ This Oracle Aggregator contract makes a few assumptions about the oracles it can
 * Oracle must support SEP-40 `price(asset: Address, timestamp: u64) -> Option<PriceData>`, and it should either return the exact price at the timestamp if the `resolution` is respected, or the most recent price from that timestamp, or `None` if no relevant price exists
 * Oracle must support `last_timestamp(): u64` to return the last round the oracle has reported prices for
 * Oracles must support a `resolution(): u32` and `decimals(): u32` functions, and these cannot change for the life of the oracle
+* Oracle must report in a reasonable amount of decimals if `max_dev` is used. At least 7 is recommended.
 
 ### Config
 
