@@ -1,4 +1,4 @@
-use soroban_sdk::{contractclient, contracttype, Address, Env, Symbol};
+use soroban_sdk::{contractclient, contracttype, Address, Env, Symbol, Vec};
 
 /// Price data for an asset at a specific timestamp
 #[contracttype]
@@ -53,4 +53,6 @@ pub trait PriceFeed {
     fn last_timestamp(env: Env) -> u64;
     /// Get the price for an asset at a specific timestamp
     fn price(env: Env, asset: &Asset, timestamp: &u64) -> Option<PriceData>;
+    /// Get last N price records
+    fn prices(env: Env, asset: Asset, records: u32) -> Option<Vec<PriceData>>;
 }
