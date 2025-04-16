@@ -43,8 +43,8 @@ The aggregator attempts to fetch the price from the source oracle as defined by 
 3. If last round timestamp is older than `max_age`, `None` will be returned
 4. If the asset is not configured to check max_dev, the price for `Asset` is attempted to be fetched from the source oracle based on the last round timestamp with `price(asset, last_timestamp)`.
 5. If the asset is configured to check max_dev, the last 4 rounds will be fetched with `prices(asset, 4)`
-    * If the aggregator does not get at least 2 prices or the most recent 2 prices break the deviation check, return `None`
-6. If the price from 4/5'stimestamp is within `max_age`, return `price`
+    * If the aggregator does not get at least 2 prices or the most recent 2 prices break the deviation check, return `None`, otherwise return the most recent price
+6. If the price from steps 4 or 5 is older than `max_age`, return `None`, otherwise, return the result
 
 ## Safety
 
