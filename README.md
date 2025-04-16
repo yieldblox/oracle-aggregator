@@ -4,13 +4,7 @@ Example Oracle Aggregator that can be used with Blend pools. This contract allow
 
 ### Supported Oracles
 
-This Oracle Aggregator contract makes a few assumptions about the oracles it can support, and was written specifically to support a small number of Reflector-like oracles:
-
-* Oracle must have the same base asset as the aggregator (e.g. USD)
-* Oracle must support SEP-40 `price(asset: Address, timestamp: u64) -> Option<PriceData>`, and it should either return the exact price at the timestamp if the `resolution` is respected, or the most recent price from that timestamp, or `None` if no relevant price exists
-* Oracle must support `last_timestamp(): u64` to return the last round the oracle has reported prices for
-* Oracles must support a `resolution(): u32` and `decimals(): u32` functions, and these cannot change for the life of the oracle
-* Oracle must report in a reasonable amount of decimals if `max_dev` is used. At least 7 is recommended.
+This Oracle aggregator is made specifically to work with Reflector-like oracles.
 
 ### Config
 
@@ -47,11 +41,10 @@ The aggregator attempts to fetch the price from the source oracle as defined by 
 1. If the `Asset` is the base asset, or is a base-like asset, a price of 1 is returned, as a fixed point number with `decimals` decimals, and the current timestamp.
 2. The last round timestamp is fetched from the source oracle with `last_timestamp()`
 3. If last round timestamp is older than `max_age`, `None` will be returned
-4. The price for `Asset` is attempted to be fetched from the source oracle based on the last round timestamp with `price(asset, last_timestamp)`.
-    *  If `None`, attempt to move back `resolution` time steps, up to or equal to `max_age` in the past, and try and fetch the price at each step. If no price found, return `None`
-5. If the asset is configured to check max_dev, attempt to get the previous price using the same method as 4, but starting from the price's reported timestamp
-    * If the aggregator cannot fetch a previous price within `max_age` of the price's reported timestamp or it is outside the deviation bounds, return `None`
-6. If the price from 4's timestamp is within `max_age`, return `price`
+4. If the asset is not configured to check max_dev, the price for `Asset` is attempted to be fetched from the source oracle based on the last round timestamp with `price(asset, last_timestamp)`.
+5. If the asset is configured to check max_dev, the last 4 rounds will be fetched with `prices(asset, 4)`
+    * If the aggregator does not get at least 2 prices or the most recent 2 prices break the deviation check, return `None`, otherwise return the most recent price
+6. If the price from steps 4 or 5 is older than `max_age`, return `None`, otherwise, return the result
 
 ## Safety
 

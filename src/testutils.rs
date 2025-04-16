@@ -3,6 +3,7 @@
 use crate::{
     contract::OracleAggregatorClient,
     types::{Asset, AssetConfig, OracleConfig},
+    OracleAggregator,
 };
 use sep_40_oracle::testutils::{Asset as MockAsset, MockPriceOracleClient, MockPriceOracleWASM};
 use soroban_sdk::{
@@ -83,7 +84,7 @@ pub fn create_oracle_aggregator<'a>(
     let oracle_aggregator_address = Address::generate(&e);
     e.register_at(
         &oracle_aggregator_address,
-        oracle_aggregator::WASM,
+        OracleAggregator,
         (admin, base.clone(), decimals, max_age),
     );
     let oracle_aggregator_client: OracleAggregatorClient<'a> =

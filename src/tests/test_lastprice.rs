@@ -1,8 +1,11 @@
 #![cfg(test)]
 
-use crate::testutils::{setup_default_aggregator, EnvTestUtils};
+use crate::testutils::{create_oracle_aggregator, setup_default_aggregator, EnvTestUtils};
 use crate::types::Asset;
 use soroban_sdk::{testutils::Address as _, vec, Address, Env, Symbol, Vec};
+use soroban_sdk::{IntoVal, Val};
+
+use super::snapshot;
 
 #[test]
 fn test_lastprice() {
@@ -141,178 +144,6 @@ fn test_lastprice_exceeds_max_timestamp() {
 
     let price_0 = oracle_aggregator_client.lastprice(&asset_0);
     assert!(price_0.is_none());
-}
-
-#[test]
-fn test_lastprice_retries_with_timestamp() {
-    let e = Env::default();
-    e.set_default_info();
-    e.mock_all_auths();
-    let admin = Address::generate(&e);
-    let base = Asset::Other(Symbol::new(&e, "BASE"));
-
-    let oracle_asset_0 = Asset::Stellar(Address::generate(&e));
-    let oracle_asset_1 = Asset::Stellar(Address::generate(&e));
-    let oracle_asset_2 = Asset::Other(Symbol::new(&e, "wETH"));
-    let asset_0 = Asset::Stellar(Address::generate(&e));
-    let asset_1 = Asset::Stellar(Address::generate(&e));
-    let asset_2 = Asset::Stellar(Address::generate(&e));
-
-    let (oracle_aggregator_client, oracle_1, oracle_2) = setup_default_aggregator(
-        &e,
-        &admin,
-        &base,
-        &oracle_asset_0,
-        &oracle_asset_1,
-        &oracle_asset_2,
-    );
-
-    let recent_norm_time_1 = e.ledger().timestamp() / 300 * 300;
-    oracle_1.set_price(
-        &Vec::from_array(&e, [0_120000000, 1_010000000]),
-        &(recent_norm_time_1 - 600),
-    );
-    oracle_1.set_price(&vec![&e], &(recent_norm_time_1 - 300));
-    oracle_1.set_price(&vec![&e], &recent_norm_time_1);
-
-    let recent_norm_time_2 = e.ledger().timestamp() / 600 * 600;
-    oracle_2.set_price(
-        &Vec::from_array(&e, [100_123_456]),
-        &(recent_norm_time_2 - 600),
-    );
-    oracle_2.set_price(&vec![&e], &recent_norm_time_2);
-
-    oracle_aggregator_client.add_asset(&asset_0, &oracle_1.address, &oracle_asset_0, &0);
-    oracle_aggregator_client.add_asset(&asset_1, &oracle_1.address, &oracle_asset_1, &0);
-    oracle_aggregator_client.add_asset(&asset_2, &oracle_2.address, &oracle_asset_2, &0);
-
-    e.jump(10);
-
-    let price_0 = oracle_aggregator_client.lastprice(&asset_0).unwrap();
-    assert_eq!(price_0.price, 0_1200000);
-    assert_eq!(price_0.timestamp, recent_norm_time_1 - 600);
-
-    let price_1 = oracle_aggregator_client.lastprice(&asset_2).unwrap();
-    assert_eq!(price_1.price, 100_123_456_0);
-    assert_eq!(price_1.timestamp, recent_norm_time_2 - 600);
-}
-
-#[test]
-fn test_lastprice_retry_exceeds_max_timestamp() {
-    let e = Env::default();
-    e.set_default_info();
-    e.mock_all_auths();
-    let admin = Address::generate(&e);
-    let base = Asset::Other(Symbol::new(&e, "BASE"));
-
-    let oracle_asset_0 = Asset::Stellar(Address::generate(&e));
-    let oracle_asset_1 = Asset::Stellar(Address::generate(&e));
-    let oracle_asset_2 = Asset::Other(Symbol::new(&e, "wETH"));
-    let asset_0 = Asset::Stellar(Address::generate(&e));
-    let asset_1 = Asset::Stellar(Address::generate(&e));
-    let asset_2 = Asset::Stellar(Address::generate(&e));
-
-    let (oracle_aggregator_client, oracle_1, oracle_2) = setup_default_aggregator(
-        &e,
-        &admin,
-        &base,
-        &oracle_asset_0,
-        &oracle_asset_1,
-        &oracle_asset_2,
-    );
-
-    let recent_norm_time = e.ledger().timestamp() / 300 * 300;
-    oracle_1.set_price(
-        &Vec::from_array(&e, [0_120000000, 1_010000000]),
-        &(recent_norm_time - 1200),
-    );
-    oracle_1.set_price(
-        &Vec::from_array(&e, [0_120000000, 1_010000000]),
-        &(recent_norm_time - 900),
-    );
-    oracle_1.set_price(&Vec::from_array(&e, []), &e.ledger().timestamp());
-    assert_eq!(oracle_1.last_timestamp(), recent_norm_time);
-
-    oracle_2.set_price(
-        &Vec::from_array(&e, [1010_000000]),
-        &(e.ledger().timestamp()),
-    );
-
-    oracle_aggregator_client.add_asset(&asset_0, &oracle_1.address, &oracle_asset_0, &0);
-    oracle_aggregator_client.add_asset(&asset_1, &oracle_1.address, &oracle_asset_1, &0);
-    oracle_aggregator_client.add_asset(&asset_2, &oracle_2.address, &oracle_asset_2, &0);
-
-    // jump 1 block to ensure the most recent price is > 900 seconds old
-    e.jump(1);
-
-    let price_0 = oracle_aggregator_client.lastprice(&asset_0);
-    assert!(price_0.is_none());
-}
-
-#[test]
-fn test_lastprice_retry_stops_if_over_max_age() {
-    let e = Env::default();
-    e.set_default_info();
-    e.mock_all_auths();
-    let admin = Address::generate(&e);
-    let base = Asset::Other(Symbol::new(&e, "BASE"));
-
-    let oracle_asset_0 = Asset::Stellar(Address::generate(&e));
-    let oracle_asset_1 = Asset::Stellar(Address::generate(&e));
-    let oracle_asset_2 = Asset::Other(Symbol::new(&e, "wETH"));
-    let asset_0 = Asset::Stellar(Address::generate(&e));
-    let asset_1 = Asset::Stellar(Address::generate(&e));
-    let asset_2 = Asset::Stellar(Address::generate(&e));
-
-    let (oracle_aggregator_client, oracle_1, oracle_2) = setup_default_aggregator(
-        &e,
-        &admin,
-        &base,
-        &oracle_asset_0,
-        &oracle_asset_1,
-        &oracle_asset_2,
-    );
-
-    let recent_norm_time = e.ledger().timestamp() / 300 * 300;
-    oracle_1.set_price(
-        &Vec::from_array(&e, [0_120000000, 1_010000000]),
-        &(recent_norm_time - 300),
-    );
-
-    let recent_norm_time_2 = e.ledger().timestamp() / 600 * 600;
-    oracle_2.set_price(&Vec::from_array(&e, [1_000_000]), &(recent_norm_time - 600));
-
-    oracle_aggregator_client.add_asset(&asset_0, &oracle_1.address, &oracle_asset_0, &0);
-    oracle_aggregator_client.add_asset(&asset_1, &oracle_1.address, &oracle_asset_1, &0);
-    oracle_aggregator_client.add_asset(&asset_2, &oracle_2.address, &oracle_asset_2, &0);
-
-    oracle_1.set_price(&Vec::from_array(&e, []), &recent_norm_time);
-    oracle_1.set_price(&Vec::from_array(&e, []), &recent_norm_time);
-
-    // jump 300 seconds
-    e.jump_time(300);
-    oracle_1.set_price(&Vec::from_array(&e, []), &(recent_norm_time + 300));
-
-    // jump 300 seconds (600 seconds total)
-    e.jump_time(300);
-    oracle_1.set_price(&Vec::from_array(&e, []), &(recent_norm_time + 600));
-    oracle_2.set_price(&Vec::from_array(&e, []), &(recent_norm_time_2 + 600));
-
-    // last prices are not all ~900 seconds old. Jump 1 more to ensure we are over the max age
-    e.jump(1);
-
-    // validate both prices are not found, and oracle 2 (longer resolution) checks less
-    // entries than oracle 1. This is a bit hacky but shows that the retry mechanism
-    // stops based on the resolution of the oracle.
-    let price_0 = oracle_aggregator_client.lastprice(&asset_0);
-    let read_entries_0 = e.cost_estimate().resources().read_entries;
-    assert!(price_0.is_none());
-
-    let price_2 = oracle_aggregator_client.lastprice(&asset_2);
-    let read_entries_2 = e.cost_estimate().resources().read_entries;
-    assert!(price_2.is_none());
-
-    assert!(read_entries_2 < read_entries_0);
 }
 
 #[test]
@@ -553,98 +384,52 @@ fn test_lastprice_max_dev_too_large_abs() {
 }
 
 #[test]
-fn test_lastprice_max_dev_checks_retries() {
-    let e = Env::default();
-    e.set_default_info();
+fn test_lastprice_max_dev_fetches_4_rounds() {
+    // mock oracle does not behave like reflector for `prices`
+    // do edge cases tests for `prices` with snapshot here
+    let e = snapshot::env_from_snapshot();
     e.mock_all_auths();
-    let admin = Address::generate(&e);
     let base = Asset::Other(Symbol::new(&e, "BASE"));
 
-    let oracle_asset_0 = Asset::Stellar(Address::generate(&e));
-    let oracle_asset_1 = Asset::Stellar(Address::generate(&e));
-    let oracle_asset_2 = Asset::Other(Symbol::new(&e, "wETH"));
-    let asset_0 = Asset::Stellar(Address::generate(&e));
+    let xlm_address = Address::from_str(&e, snapshot::XLM);
+    let xlm_asset = Asset::Stellar(xlm_address.clone());
 
-    let (oracle_aggregator_client, oracle_1, _) = setup_default_aggregator(
-        &e,
-        &admin,
-        &base,
-        &oracle_asset_0,
-        &oracle_asset_1,
-        &oracle_asset_2,
-    );
+    let bombadil = Address::generate(&e);
+    let reflector = Address::from_str(&e, snapshot::REFLECTOR);
 
-    let norm_timestamp = e.ledger().timestamp() / 300 * 300;
-    oracle_1.set_price(
-        &Vec::from_array(&e, [2_101_000_000, 0_101_111_000]),
-        &(norm_timestamp - 300),
-    );
+    let (_, aggregator_client) = create_oracle_aggregator(&e, &bombadil, &base, &7, &900);
 
-    oracle_1.set_price(
-        &Vec::from_array(&e, [2_100_000_000, 0_100_111_000]),
-        &norm_timestamp,
-    );
+    aggregator_client.add_oracle(&reflector);
 
-    oracle_aggregator_client.add_asset(&asset_0, &oracle_1.address, &oracle_asset_0, &10);
+    aggregator_client.add_asset(&xlm_asset, &reflector, &xlm_asset, &10);
+    let mut round_timestamp = snapshot::LAST_UPDATE_TIMESTAMP.clone();
+    e.jump_time(300);
 
-    e.jump_time(900); // 900 sec between prices
-    oracle_1.set_price(
-        &Vec::from_array(&e, [1_900_000_000, 0_500_111_000]),
-        &(norm_timestamp + 900),
-    );
+    // set starting prices on the reflector contract
+    round_timestamp += 300;
+    set_reflector_prices(&e, 0_3000000_0000000);
 
-    e.jump_time(900); // 900 sec from frist price
+    // TEST: Verify lastprice can verify last price if it is 4 rounds ago
 
-    let price_0 = oracle_aggregator_client.lastprice(&asset_0).unwrap();
-    assert_eq!(price_0.price, 1_900_000_0);
-    assert_eq!(price_0.timestamp, norm_timestamp + 900);
-}
+    // skip 3 rounds
+    e.jump_time(900);
 
-#[test]
-fn test_lastprice_max_dev_old_price_too_old() {
-    let e = Env::default();
-    e.set_default_info();
-    e.mock_all_auths();
-    let admin = Address::generate(&e);
-    let base = Asset::Other(Symbol::new(&e, "BASE"));
+    round_timestamp += 900;
+    set_reflector_prices(&e, 0_3100000_0000000);
 
-    let oracle_asset_0 = Asset::Stellar(Address::generate(&e));
-    let oracle_asset_1 = Asset::Stellar(Address::generate(&e));
-    let oracle_asset_2 = Asset::Other(Symbol::new(&e, "wETH"));
-    let asset_0 = Asset::Stellar(Address::generate(&e));
+    e.jump_time(100);
 
-    let (oracle_aggregator_client, oracle_1, _) = setup_default_aggregator(
-        &e,
-        &admin,
-        &base,
-        &oracle_asset_0,
-        &oracle_asset_1,
-        &oracle_asset_2,
-    );
+    let xlm_price = aggregator_client.lastprice(&xlm_asset).unwrap();
+    assert_eq!(xlm_price.price, 0_3100000);
+    assert_eq!(xlm_price.timestamp, round_timestamp);
 
-    let norm_timestamp = e.ledger().timestamp() / 300 * 300;
-    oracle_1.set_price(
-        &Vec::from_array(&e, [2_101_000_000, 0_101_111_000]),
-        &(norm_timestamp - 300),
-    );
+    // TEST: Verify lastprice returns none if last price is > 4 rounds ago
+    e.jump_time(200);
+    e.jump_time(900);
+    set_reflector_prices(&e, 0_3200000_0000000);
 
-    oracle_1.set_price(
-        &Vec::from_array(&e, [2_100_000_000, 0_100_111_000]),
-        &norm_timestamp,
-    );
-
-    oracle_aggregator_client.add_asset(&asset_0, &oracle_1.address, &oracle_asset_0, &10);
-
-    e.jump_time(1200); // 1200 sec between prices
-    oracle_1.set_price(
-        &Vec::from_array(&e, [1_900_000_000, 0_500_111_000]),
-        &(norm_timestamp + 1200),
-    );
-
-    e.jump_time(900); // 900 sec from frist price
-
-    let price_0 = oracle_aggregator_client.lastprice(&asset_0);
-    assert!(price_0.is_none());
+    let xlm_price = aggregator_client.lastprice(&xlm_asset);
+    assert!(xlm_price.is_none());
 }
 
 #[test]
@@ -682,14 +467,43 @@ fn test_lastprice_max_dev_first_price_too_old() {
 
     oracle_aggregator_client.add_asset(&asset_0, &oracle_1.address, &oracle_asset_0, &10);
 
-    e.jump_time(900); // 900 sec between prices
+    e.jump_time(300); // 300 sec between prices
     oracle_1.set_price(
         &Vec::from_array(&e, [1_900_000_000, 0_500_111_000]),
-        &(norm_timestamp + 900),
+        &(norm_timestamp + 300),
     );
 
-    e.jump_time(901); // 901 sec from first price
+    e.jump_time(900); // 900 sec from first price
 
+    let price_0 = oracle_aggregator_client.lastprice(&asset_0).unwrap();
+    assert_eq!(price_0.price, 1_900_000_0);
+    assert_eq!(price_0.timestamp, norm_timestamp + 300);
+
+    e.jump_time(1);
     let price_0 = oracle_aggregator_client.lastprice(&asset_0);
     assert!(price_0.is_none());
+}
+
+/// Set prices on the reflector contract for the most recent round based on the
+/// current ledger timestamp.
+fn set_reflector_prices(e: &Env, xlm_price: i128) {
+    let timestamp: u64 = (e.ledger().timestamp() / 300u64) * 300u64 * 1000u64;
+    let reflector = Address::from_str(&e, snapshot::REFLECTOR);
+    let price_array: Vec<i128> = vec![
+        e, 1, // BTCLN
+        1, // AQUA,
+        1, // yUSDC
+        1, // FIDR
+        1, // SSLX
+        1, // ARST
+        1, // mykobo EURC
+        xlm_price, 1, // XRP
+        1, // EURC
+        1, // XRF
+        1, // USDGLO
+        1, // CETES
+        1, // USTRY
+    ];
+    let args: Vec<Val> = vec![e, price_array.into_val(e), timestamp.into_val(e)];
+    e.invoke_contract::<Val>(&reflector, &Symbol::new(e, "set_price"), args);
 }

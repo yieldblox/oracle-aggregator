@@ -90,7 +90,9 @@ fn test_reflector() {
     set_reflector_prices(&e, 0_3100000_0000000, 0, 0, 1_0000011_0000000);
 
     // validate lastprice
-    // -> EURC and AQUA did not have price data last round, but the prev round is in `max_age`
+    // -> EURC and AQUA did not have price data last round
+    // -> AQUA returns None
+    // -> EURC able to capture safe price from last 4 rounds
     let usdc_price = aggregator_client.lastprice(&usdc_asset).unwrap();
     assert_eq!(usdc_price.price, 1_0000000);
     assert_eq!(usdc_price.timestamp, e.ledger().timestamp());
@@ -100,9 +102,8 @@ fn test_reflector() {
     let eurc_price = aggregator_client.lastprice(&eurc_asset).unwrap();
     assert_eq!(eurc_price.price, 1_1000000);
     assert_eq!(eurc_price.timestamp, round_timestamp - 300);
-    let aqua_price = aggregator_client.lastprice(&aqua_asset).unwrap();
-    assert_eq!(aqua_price.price, 0_0007123);
-    assert_eq!(aqua_price.timestamp, round_timestamp - 300);
+    let aqua_price = aggregator_client.lastprice(&aqua_asset);
+    assert!(aqua_price.is_none());
     let usdglo_price = aggregator_client.lastprice(&usdglo_asset).unwrap();
     assert_eq!(usdglo_price.price, 1_0000000);
     assert_eq!(usdglo_price.timestamp, e.ledger().timestamp());
@@ -148,6 +149,23 @@ fn test_reflector() {
         1_0000003_0000000,
     );
 
+    // validate lastprice
+    // -> EURC trips the 10% deviation
+    let usdc_price = aggregator_client.lastprice(&usdc_asset).unwrap();
+    assert_eq!(usdc_price.price, 1_0000000);
+    assert_eq!(usdc_price.timestamp, e.ledger().timestamp());
+    let xlm_price = aggregator_client.lastprice(&xlm_asset).unwrap();
+    assert_eq!(xlm_price.price, 0_2800000);
+    assert_eq!(xlm_price.timestamp, round_timestamp);
+    let eurc_price = aggregator_client.lastprice(&eurc_asset);
+    assert!(eurc_price.is_none());
+    let aqua_price = aggregator_client.lastprice(&aqua_asset).unwrap();
+    assert_eq!(aqua_price.price, 0_0008023);
+    assert_eq!(aqua_price.timestamp, round_timestamp);
+    let usdglo_price = aggregator_client.lastprice(&usdglo_asset).unwrap();
+    assert_eq!(usdglo_price.price, 1_0000000);
+    assert_eq!(usdglo_price.timestamp, e.ledger().timestamp());
+
     // set round 4 prices to ensure EURC can be fetched again
     e.jump_time(300);
     round_timestamp += 300;
@@ -159,19 +177,20 @@ fn test_reflector() {
         1_0000004_0000000,
     );
 
-    // jump exactly max_age to ensure prices can still be fetched
+    // jump max_age rounds to ensure some prices can still be fetched
     e.jump_time(900);
 
     // validate lastprice
+    // -> EURC requires most recent price in last 2 rounds due to
+    //    reflector `prices` implementation
     let usdc_price = aggregator_client.lastprice(&usdc_asset).unwrap();
     assert_eq!(usdc_price.price, 1_0000000);
     assert_eq!(usdc_price.timestamp, e.ledger().timestamp());
     let xlm_price = aggregator_client.lastprice(&xlm_asset).unwrap();
     assert_eq!(xlm_price.price, 0_2700000);
     assert_eq!(xlm_price.timestamp, round_timestamp);
-    let eurc_price = aggregator_client.lastprice(&eurc_asset).unwrap();
-    assert_eq!(eurc_price.price, 1_2400000);
-    assert_eq!(eurc_price.timestamp, round_timestamp);
+    let eurc_price = aggregator_client.lastprice(&eurc_asset);
+    assert!(eurc_price.is_none());
     let aqua_price = aggregator_client.lastprice(&aqua_asset).unwrap();
     assert_eq!(aqua_price.price, 0_0008123);
     assert_eq!(aqua_price.timestamp, round_timestamp);
